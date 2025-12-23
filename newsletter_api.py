@@ -10,11 +10,8 @@ from datetime import datetime
 from dotenv import load_dotenv
 from supabase import create_client, Client
 
-load_dotenv()
-
-# Supabase Configuration
-SUPABASE_URL = os.getenv('SUPABASE_URL')
-SUPABASE_SERVICE_KEY = os.getenv('SUPABASE_SERVICE_KEY')  # Use service key for backend
+# Force reload .env file
+load_dotenv(override=True)
 
 # Brevo Configuration (for sending emails only)
 BREVO_API_KEY = os.getenv('BREVO_API_KEY')
@@ -24,13 +21,26 @@ BREVO_API_URL = "https://api.brevo.com/v3"
 supabase: Client = None
 
 def get_supabase_client():
-    """Get or create Supabase client"""
+    """Get or create Supabase client - reads credentials fresh each time if not initialized"""
     global supabase
     if supabase is None:
-        if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
+        # Read credentials fresh from .env file in project directory
+        env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+        load_dotenv(env_path, override=True)
+        
+        supabase_url = os.getenv('SUPABASE_URL')
+        supabase_key = os.getenv('SUPABASE_SERVICE_KEY')
+        
+        print(f"📁 Loading .env from: {env_path}")
+        print(f"   SUPABASE_URL: {supabase_url}")
+        print(f"   SUPABASE_SERVICE_KEY: {supabase_key[:50] if supabase_key else 'NOT SET'}...")
+        
+        if not supabase_url or not supabase_key:
             print("⚠️ Supabase credentials not configured")
             return None
-        supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+        
+        print(f"🔌 Connecting to Supabase...")
+        supabase = create_client(supabase_url, supabase_key)
     return supabase
 
 
