@@ -9,7 +9,7 @@ import { ENDPOINTS } from '../config/api';
 import './ChatInterface.css';
 
 const ChatInterface = () => {
-  const { getCurrentSession, updateSessionMessages, currentSessionId, createNewSession, setSessions, sessions } = useSession();
+  const { getCurrentSession, updateSessionMessages, currentSessionId, createNewSession, setSessions, sessions, isLoadingFromDB } = useSession();
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
@@ -20,11 +20,14 @@ const ChatInterface = () => {
   const messages = currentSession?.messages || [];
 
   useEffect(() => {
-    // Only create a new session if there are no sessions at all
-    if (!currentSessionId && sessions.length === 0) {
+    // Only create a new session if:
+    // 1. Database loading is complete (not loading from DB)
+    // 2. There are no sessions at all
+    // 3. There's no current session selected
+    if (!isLoadingFromDB && !currentSessionId && sessions.length === 0) {
       createNewSession();
     }
-  }, [currentSessionId, createNewSession, sessions.length]);
+  }, [currentSessionId, createNewSession, sessions.length, isLoadingFromDB]);
 
   useEffect(() => {
     scrollToBottom();
