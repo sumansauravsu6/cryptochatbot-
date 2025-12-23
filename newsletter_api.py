@@ -9,6 +9,7 @@ import requests
 from datetime import datetime
 from dotenv import load_dotenv
 from supabase import create_client, Client
+from supabase.lib.client_options import ClientOptions
 
 # Force reload .env file
 load_dotenv(override=True)
@@ -26,21 +27,32 @@ def get_supabase_client():
     if supabase is None:
         # Read credentials fresh from .env file in project directory
         env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
-        load_dotenv(env_path, override=True)
+        if os.path.exists(env_path):
+            load_dotenv(env_path, override=True)
         
         supabase_url = os.getenv('SUPABASE_URL')
         supabase_key = os.getenv('SUPABASE_SERVICE_KEY')
         
         print(f"📁 Loading .env from: {env_path}")
-        print(f"   SUPABASE_URL: {supabase_url}")
-        print(f"   SUPABASE_SERVICE_KEY: {supabase_key[:50] if supabase_key else 'NOT SET'}...")
+        print(f"   SUPABASE_URL: {'***' if supabase_url else 'NOT SET'}")
+        print(f"   SUPABASE_SERVICE_KEY: {'***' if supabase_key else 'NOT SET'}")
         
         if not supabase_url or not supabase_key:
             print("⚠️ Supabase credentials not configured")
             return None
         
         print(f"🔌 Connecting to Supabase...")
-        supabase = create_client(supabase_url, supabase_key)
+        try:
+            # Try with default options first
+            supabase = create_client(supabase_url, supabase_key)
+        except TypeError as e:
+            # Fallback for older versions or proxy issues
+            print(f"   Using fallback connection method...")
+            supabase = create_client(
+                supabase_url, 
+                supabase_key,
+                options=ClientOptions(postgrest_client_timeout=10)
+            )
     return supabase
 
 
