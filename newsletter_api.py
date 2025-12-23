@@ -1,20 +1,46 @@
 """
-Newsletter subscription API using Brevo (formerly Sendinblue)
+Newsletter subscription API using Supabase for storage and Brevo for sending emails
+- User preferences stored in Supabase
+- Users can edit their topic choices
+- Newsletter sending fetches preferences from Supabase
 """
 import os
 import requests
 from datetime import datetime
 from dotenv import load_dotenv
+from supabase import create_client, Client
 
 load_dotenv()
 
+# Supabase Configuration
+SUPABASE_URL = os.getenv('SUPABASE_URL')
+SUPABASE_SERVICE_KEY = os.getenv('SUPABASE_SERVICE_KEY')  # Use service key for backend
+
+# Brevo Configuration (for sending emails only)
 BREVO_API_KEY = os.getenv('BREVO_API_KEY')
 BREVO_API_URL = "https://api.brevo.com/v3"
 
+# Initialize Supabase client
+supabase: Client = None
+
+def get_supabase_client():
+    """Get or create Supabase client"""
+    global supabase
+    if supabase is None:
+        if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
+            print("⚠️ Supabase credentials not configured")
+            return None
+        supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    return supabase
+
+
+# ============================================
+# SUPABASE SUBSCRIPTION FUNCTIONS
+# ============================================
 
 def subscribe_to_newsletter(email, topics, user_name="User"):
     """
-    Subscribe a user to the newsletter with selected topics
+    Subscribe a user to the newsletter - stores preferences in Supabase
     
     Args:
         email: User's email address
@@ -24,80 +50,266 @@ def subscribe_to_newsletter(email, topics, user_name="User"):
     Returns:
         dict: Response with success status
     """
-    headers = {
-        "accept": "application/json",
-        "content-type": "application/json",
-        "api-key": BREVO_API_KEY
-    }
-    
-    # Prepare contact attributes with topics
-    attributes = {
-        "FIRSTNAME": user_name.split()[0] if user_name else "User",
-        "TOPICS": ",".join(topics),
-        "SUBSCRIBED_DATE": datetime.now().strftime("%Y-%m-%d"),
-        "SOURCE": "Crypto Chatbot"
-    }
-    
-    print(f"DEBUG - Subscribing with attributes: {attributes}")
-    
-    # Create or update contact in Brevo
-    # Note: Using SMS field as workaround for topics since custom attributes need to be created in Brevo dashboard
-    contact_data = {
-        "email": email,
-        "attributes": {
-            "FIRSTNAME": user_name.split()[0] if user_name else "User",
-            "LASTNAME": ",".join(topics)  # Store topics in LASTNAME as workaround
-        },
-        "updateEnabled": True
-    }
+    client = get_supabase_client()
+    if not client:
+        return {"success": False, "message": "Supabase not configured"}
     
     try:
-        # Add contact to Brevo
-        response = requests.post(
-            f"{BREVO_API_URL}/contacts",
-            json=contact_data,
-            headers=headers
-        )
+        # Check if user already exists
+        existing = client.table('newsletter_subscriptions').select('*').eq('user_email', email).execute()
         
-        print(f"DEBUG - Brevo response status: {response.status_code}")
-        print(f"DEBUG - Brevo response: {response.text}")
-        
-        if response.status_code in [201, 204]:
+        if existing.data and len(existing.data) > 0:
+            # Update existing subscription
+            result = client.table('newsletter_subscriptions').update({
+                'topics': topics,
+                'user_name': user_name,
+                'is_active': True,
+                'updated_at': datetime.now().isoformat()
+            }).eq('user_email', email).execute()
+            
+            return {
+                "success": True,
+                "message": "Newsletter subscription updated",
+                "email": email,
+                "topics": topics
+            }
+        else:
+            # Create new subscription
+            result = client.table('newsletter_subscriptions').insert({
+                'user_email': email,
+                'user_name': user_name,
+                'topics': topics,
+                'is_active': True
+            }).execute()
+            
             return {
                 "success": True,
                 "message": "Successfully subscribed to newsletter",
-                "email": email
+                "email": email,
+                "topics": topics
             }
-        elif response.status_code == 400:
-            # Contact might already exist, try to update
-            response = requests.put(
-                f"{BREVO_API_URL}/contacts/{email}",
-                json={"attributes": {"FIRSTNAME": user_name.split()[0] if user_name else "User", "LASTNAME": ",".join(topics)}},
-                headers=headers
-            )
-            if response.status_code == 204:
-                return {
-                    "success": True,
-                    "message": "Newsletter subscription updated",
-                    "email": email
-                }
-        
-        return {
-            "success": False,
-            "message": f"Failed to subscribe: {response.text}",
-            "status_code": response.status_code
-        }
-        
+            
     except Exception as e:
+        print(f"Error subscribing to newsletter: {e}")
         return {
             "success": False,
             "message": f"Error subscribing to newsletter: {str(e)}"
         }
 
 
+def unsubscribe_from_newsletter(email):
+    """
+    Unsubscribe a user from the newsletter (soft delete - sets is_active to False)
+    
+    Args:
+        email: User's email address
+    
+    Returns:
+        dict: Response with success status
+    """
+    client = get_supabase_client()
+    if not client:
+        return {"success": False, "message": "Supabase not configured"}
+    
+    try:
+        result = client.table('newsletter_subscriptions').update({
+            'is_active': False,
+            'updated_at': datetime.now().isoformat()
+        }).eq('user_email', email).execute()
+        
+        return {
+            "success": True,
+            "message": "Successfully unsubscribed from newsletter"
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Error unsubscribing: {str(e)}"
+        }
+
+
+def get_subscriber_info(email):
+    """
+    Get subscriber information including their topics from Supabase
+    
+    Args:
+        email: User's email address
+    
+    Returns:
+        dict: Subscriber information with topics
+    """
+    client = get_supabase_client()
+    if not client:
+        return {"success": False, "message": "Supabase not configured", "topics": []}
+    
+    try:
+        result = client.table('newsletter_subscriptions').select('*').eq('user_email', email).execute()
+        
+        if result.data and len(result.data) > 0:
+            subscriber = result.data[0]
+            return {
+                "success": True,
+                "email": email,
+                "name": subscriber.get('user_name', 'User'),
+                "topics": subscriber.get('topics', []),
+                "is_active": subscriber.get('is_active', False),
+                "subscribed_date": subscriber.get('created_at', '')
+            }
+        else:
+            return {
+                "success": False,
+                "message": "Subscriber not found",
+                "topics": []
+            }
+            
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Error getting subscriber info: {str(e)}",
+            "topics": []
+        }
+
+
+def update_subscriber_topics(email, topics, user_name="User", mode="replace"):
+    """
+    Update subscriber's topics in Supabase
+    
+    Args:
+        email: User's email address
+        topics: List of topic IDs to subscribe to
+        user_name: User's name
+        mode: 'merge' to add new topics, 'replace' to replace all topics (default)
+    
+    Returns:
+        dict: Response with success status
+    """
+    client = get_supabase_client()
+    if not client:
+        return {"success": False, "message": "Supabase not configured"}
+    
+    if mode == "merge":
+        # Get existing subscriber info
+        existing = get_subscriber_info(email)
+        
+        if existing.get('success'):
+            # Merge existing topics with new topics (avoid duplicates)
+            existing_topics = existing.get('topics', [])
+            final_topics = list(set(existing_topics + topics))
+        else:
+            final_topics = topics
+    else:  # mode == "replace"
+        final_topics = topics
+    
+    # Validate that we have at least one topic
+    if not final_topics:
+        return {
+            "success": False,
+            "message": "At least one topic is required"
+        }
+    
+    try:
+        # Check if user exists
+        existing = client.table('newsletter_subscriptions').select('*').eq('user_email', email).execute()
+        
+        if existing.data and len(existing.data) > 0:
+            # Update existing
+            result = client.table('newsletter_subscriptions').update({
+                'topics': final_topics,
+                'user_name': user_name,
+                'is_active': True,
+                'updated_at': datetime.now().isoformat()
+            }).eq('user_email', email).execute()
+        else:
+            # Create new
+            result = client.table('newsletter_subscriptions').insert({
+                'user_email': email,
+                'user_name': user_name,
+                'topics': final_topics,
+                'is_active': True
+            }).execute()
+        
+        return {
+            "success": True,
+            "message": "Topics updated successfully",
+            "email": email,
+            "topics": final_topics
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Error updating topics: {str(e)}"
+        }
+
+
+def get_all_active_subscribers():
+    """
+    Get all active newsletter subscribers from Supabase
+    
+    Returns:
+        list: List of active subscribers with their topics
+    """
+    client = get_supabase_client()
+    if not client:
+        return []
+    
+    try:
+        result = client.table('newsletter_subscriptions').select('*').eq('is_active', True).execute()
+        
+        return result.data if result.data else []
+        
+    except Exception as e:
+        print(f"Error getting subscribers: {e}")
+        return []
+
+
+def get_subscribers_by_topics(topics):
+    """
+    Get all active subscribers interested in specific topics
+    
+    Args:
+        topics: List of topic IDs
+    
+    Returns:
+        list: List of subscriber dictionaries
+    """
+    client = get_supabase_client()
+    if not client:
+        return []
+    
+    try:
+        # Get all active subscribers
+        result = client.table('newsletter_subscriptions').select('*').eq('is_active', True).execute()
+        
+        if not result.data:
+            return []
+        
+        # Filter subscribers who have at least one matching topic
+        matching_subscribers = []
+        for subscriber in result.data:
+            subscriber_topics = subscriber.get('topics', [])
+            if any(topic in subscriber_topics for topic in topics):
+                matching_subscribers.append({
+                    "email": subscriber['user_email'],
+                    "name": subscriber.get('user_name', 'User'),
+                    "topics": subscriber_topics
+                })
+        
+        return matching_subscribers
+        
+    except Exception as e:
+        print(f"Error getting subscribers by topics: {e}")
+        return []
+
+
+# ============================================
+# BREVO EMAIL SENDING FUNCTIONS
+# ============================================
+
 def send_newsletter(recipient_email, subject, html_content, topics):
     """
-    Send a newsletter email to a subscriber
+    Send a newsletter email to a subscriber using Brevo
     
     Args:
         recipient_email: Email address of the recipient
@@ -108,16 +320,23 @@ def send_newsletter(recipient_email, subject, html_content, topics):
     Returns:
         dict: Response with success status
     """
+    if not BREVO_API_KEY:
+        return {"success": False, "message": "Brevo API key not configured"}
+    
     headers = {
         "accept": "application/json",
         "content-type": "application/json",
         "api-key": BREVO_API_KEY
     }
     
+    # Get sender email from env or use default
+    sender_email = os.getenv('NEWSLETTER_SENDER_EMAIL', 'newsletter@example.com')
+    sender_name = os.getenv('NEWSLETTER_SENDER_NAME', 'Crypto Chatbot Newsletter')
+    
     email_data = {
         "sender": {
-            "name": "Crypto Chatbot Newsletter",
-            "email": "newsletter@cryptochatbot.com"  # Replace with your verified sender
+            "name": sender_name,
+            "email": sender_email
         },
         "to": [
             {
@@ -126,7 +345,7 @@ def send_newsletter(recipient_email, subject, html_content, topics):
         ],
         "subject": subject,
         "htmlContent": html_content,
-        "tags": ["newsletter", "weekly-digest"]
+        "tags": ["newsletter", "crypto", "weekly-digest"]
     }
     
     try:
@@ -155,55 +374,13 @@ def send_newsletter(recipient_email, subject, html_content, topics):
         }
 
 
-def get_subscribers_by_topics(topics):
-    """
-    Get all subscribers interested in specific topics
-    
-    Args:
-        topics: List of topic IDs
-    
-    Returns:
-        list: List of subscriber email addresses
-    """
-    headers = {
-        "accept": "application/json",
-        "api-key": BREVO_API_KEY
-    }
-    
-    try:
-        # Get all contacts from list
-        response = requests.get(
-            f"{BREVO_API_URL}/contacts/lists/2/contacts",  # List ID 2
-            headers=headers,
-            params={"limit": 500}
-        )
-        
-        if response.status_code == 200:
-            contacts = response.json().get("contacts", [])
-            
-            # Filter contacts by topics
-            matching_subscribers = []
-            for contact in contacts:
-                subscriber_topics = contact.get("attributes", {}).get("TOPICS", "").split(",")
-                if any(topic in subscriber_topics for topic in topics):
-                    matching_subscribers.append({
-                        "email": contact["email"],
-                        "name": contact.get("attributes", {}).get("FIRSTNAME", "User"),
-                        "topics": subscriber_topics
-                    })
-            
-            return matching_subscribers
-        else:
-            return []
-            
-    except Exception as e:
-        print(f"Error getting subscribers: {e}")
-        return []
+# ============================================
+# UTILITY FUNCTIONS
+# ============================================
 
-
-def unsubscribe_from_newsletter(email):
+def delete_subscriber(email):
     """
-    Unsubscribe a user from the newsletter
+    Permanently delete a subscriber from Supabase (hard delete)
     
     Args:
         email: User's email address
@@ -211,158 +388,96 @@ def unsubscribe_from_newsletter(email):
     Returns:
         dict: Response with success status
     """
-    headers = {
-        "accept": "application/json",
-        "api-key": BREVO_API_KEY
-    }
+    client = get_supabase_client()
+    if not client:
+        return {"success": False, "message": "Supabase not configured"}
     
     try:
-        # Remove from list or delete contact
-        response = requests.delete(
-            f"{BREVO_API_URL}/contacts/{email}",
-            headers=headers
-        )
+        result = client.table('newsletter_subscriptions').delete().eq('user_email', email).execute()
         
-        if response.status_code == 204:
-            return {
-                "success": True,
-                "message": "Successfully unsubscribed from newsletter"
-            }
-        else:
-            return {
-                "success": False,
-                "message": f"Failed to unsubscribe: {response.text}"
-            }
-            
+        return {
+            "success": True,
+            "message": "Subscriber deleted successfully"
+        }
+        
     except Exception as e:
         return {
             "success": False,
-            "message": f"Error unsubscribing: {str(e)}"
+            "message": f"Error deleting subscriber: {str(e)}"
         }
 
-def get_subscriber_info(email):
+
+def get_subscription_stats():
     """
-    Get subscriber information including their topics
-    
-    Args:
-        email: User's email address
+    Get newsletter subscription statistics
     
     Returns:
-        dict: Subscriber information with topics
+        dict: Stats including total, active, and topic counts
     """
-    headers = {
-        "accept": "application/json",
-        "api-key": BREVO_API_KEY
-    }
+    client = get_supabase_client()
+    if not client:
+        return {"success": False, "message": "Supabase not configured"}
     
     try:
-        response = requests.get(
-            f"{BREVO_API_URL}/contacts/{email}",
-            headers=headers
-        )
+        # Get all subscriptions
+        all_subs = client.table('newsletter_subscriptions').select('*').execute()
+        active_subs = client.table('newsletter_subscriptions').select('*').eq('is_active', True).execute()
         
-        if response.status_code == 200:
-            contact = response.json()
-            # Topics are stored in LASTNAME field as workaround
-            topics_str = contact.get("attributes", {}).get("LASTNAME", "")
-            topics = [t.strip() for t in topics_str.split(",") if t.strip()]
-            
-            return {
-                "success": True,
-                "email": email,
-                "name": contact.get("attributes", {}).get("FIRSTNAME", "User"),
-                "topics": topics,
-                "subscribed_date": contact.get("createdAt", "")
-            }
-        elif response.status_code == 404:
-            return {
-                "success": False,
-                "message": "Subscriber not found",
-                "topics": []
-            }
-        else:
-            return {
-                "success": False,
-                "message": f"Failed to get subscriber info: {response.text}",
-                "topics": []
-            }
-            
+        # Count topics
+        topic_counts = {}
+        for sub in (active_subs.data or []):
+            for topic in sub.get('topics', []):
+                topic_counts[topic] = topic_counts.get(topic, 0) + 1
+        
+        return {
+            "success": True,
+            "total_subscribers": len(all_subs.data) if all_subs.data else 0,
+            "active_subscribers": len(active_subs.data) if active_subs.data else 0,
+            "topic_counts": topic_counts
+        }
+        
     except Exception as e:
         return {
             "success": False,
-            "message": f"Error getting subscriber info: {str(e)}",
-            "topics": []
+            "message": f"Error getting stats: {str(e)}"
         }
 
 
-def update_subscriber_topics(email, topics, user_name="User", mode="replace"):
-    """
-    Update subscriber's topics
+# ============================================
+# TEST FUNCTION
+# ============================================
+
+if __name__ == '__main__':
+    print("🧪 Testing Newsletter API with Supabase")
+    print("=" * 50)
     
-    Args:
-        email: User's email address
-        topics: List of topic IDs to subscribe to
-        user_name: User's name
-        mode: 'merge' to add new topics, 'replace' to replace all topics (default)
+    # Test connection
+    client = get_supabase_client()
+    if client:
+        print("✅ Supabase connected")
+    else:
+        print("❌ Supabase not configured")
+        exit(1)
     
-    Returns:
-        dict: Response with success status
-    """
-    headers = {
-        "accept": "application/json",
-        "content-type": "application/json",
-        "api-key": BREVO_API_KEY
-    }
+    # Test subscribe
+    test_email = "test@example.com"
+    result = subscribe_to_newsletter(test_email, ["bitcoin", "ethereum"], "Test User")
+    print(f"Subscribe: {result}")
     
-    if mode == "merge":
-        # Get existing subscriber info
-        existing = get_subscriber_info(email)
-        
-        if existing.get('success'):
-            # Merge existing topics with new topics (avoid duplicates)
-            existing_topics = existing.get('topics', [])
-            final_topics = list(set(existing_topics + topics))
-        else:
-            final_topics = topics
-    else:  # mode == "replace"
-        # Replace all topics with the new list
-        final_topics = topics
+    # Test get info
+    result = get_subscriber_info(test_email)
+    print(f"Get Info: {result}")
     
-    # Validate that we have at least one topic
-    if not final_topics:
-        return {
-            "success": False,
-            "message": "At least one topic is required"
-        }
+    # Test update topics
+    result = update_subscriber_topics(test_email, ["bitcoin", "defi", "nft-art"], "Test User")
+    print(f"Update Topics: {result}")
     
-    # Update contact attributes (using LASTNAME to store topics)
-    attributes = {
-        "FIRSTNAME": user_name.split()[0] if user_name else "User",
-        "LASTNAME": ",".join(final_topics)
-    }
+    # Test get all active
+    result = get_all_active_subscribers()
+    print(f"Active Subscribers: {len(result)}")
     
-    try:
-        response = requests.put(
-            f"{BREVO_API_URL}/contacts/{email}",
-            json={"attributes": attributes},
-            headers=headers
-        )
-        
-        if response.status_code == 204:
-            return {
-                "success": True,
-                "message": "Topics updated successfully",
-                "email": email,
-                "topics": final_topics
-            }
-        else:
-            return {
-                "success": False,
-                "message": f"Failed to update topics: {response.text}"
-            }
-            
-    except Exception as e:
-        return {
-            "success": False,
-            "message": f"Error updating topics: {str(e)}"
-        }
+    # Test stats
+    result = get_subscription_stats()
+    print(f"Stats: {result}")
+    
+    print("\n✅ All tests completed!")

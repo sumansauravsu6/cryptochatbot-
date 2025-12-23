@@ -101,3 +101,52 @@ CREATE TRIGGER update_chat_sessions_updated_at
 
 -- Sample query to verify tables were created
 -- SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';
+
+-- ============================================
+-- NEWSLETTER SUBSCRIPTIONS TABLE
+-- ============================================
+
+-- Create newsletter_subscriptions table
+CREATE TABLE IF NOT EXISTS newsletter_subscriptions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_email TEXT NOT NULL UNIQUE,
+    user_name TEXT DEFAULT 'User',
+    topics TEXT[] NOT NULL DEFAULT '{}',
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Create index for faster lookups
+CREATE INDEX IF NOT EXISTS idx_newsletter_user_email ON newsletter_subscriptions(user_email);
+CREATE INDEX IF NOT EXISTS idx_newsletter_is_active ON newsletter_subscriptions(is_active);
+
+-- Enable Row Level Security
+ALTER TABLE newsletter_subscriptions ENABLE ROW LEVEL SECURITY;
+
+-- Create policies for newsletter_subscriptions
+CREATE POLICY "Anyone can view subscriptions"
+    ON newsletter_subscriptions
+    FOR SELECT
+    USING (true);
+
+CREATE POLICY "Anyone can create subscriptions"
+    ON newsletter_subscriptions
+    FOR INSERT
+    WITH CHECK (true);
+
+CREATE POLICY "Anyone can update subscriptions"
+    ON newsletter_subscriptions
+    FOR UPDATE
+    USING (true);
+
+CREATE POLICY "Anyone can delete subscriptions"
+    ON newsletter_subscriptions
+    FOR DELETE
+    USING (true);
+
+-- Trigger to auto-update updated_at
+CREATE TRIGGER update_newsletter_subscriptions_updated_at
+    BEFORE UPDATE ON newsletter_subscriptions
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();

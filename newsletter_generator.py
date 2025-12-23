@@ -219,6 +219,7 @@ def generate_newsletter_html(subscriber_name, topics, news_by_topic):
 def send_newsletters_to_all_subscribers():
     """
     Main function to generate and send newsletters to all subscribers
+    Fetches user preferences from Supabase and sends top 3 news per topic
     This should be run weekly (e.g., via cron job every Monday)
     """
     print("=" * 70)
@@ -226,42 +227,54 @@ def send_newsletters_to_all_subscribers():
     print(f"⏰ Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 70)
     
-    # Get all unique topics from topic names
-    all_topics = list(TOPIC_NAMES.keys())
+    # Get all active subscribers from Supabase
+    print("\n👥 Fetching subscribers from Supabase...")
+    from newsletter_api import get_all_active_subscribers
+    subscribers = get_all_active_subscribers()
+    print(f"   ✓ Found {len(subscribers)} active subscribers")
     
-    # Collect news for each topic (do this once for all subscribers)
-    print("\n📰 Collecting news for all topics...")
+    if not subscribers:
+        print("\n⚠️  No active subscribers found!")
+        return
+    
+    # Collect unique topics across all subscribers
+    all_subscriber_topics = set()
+    for subscriber in subscribers:
+        all_subscriber_topics.update(subscriber.get('topics', []))
+    
+    print(f"\n📋 Topics to fetch: {len(all_subscriber_topics)}")
+    for topic in all_subscriber_topics:
+        print(f"   • {TOPIC_NAMES.get(topic, topic)}")
+    
+    # Collect top 3 news for each topic (do this once for all subscribers)
+    print("\n📰 Collecting TOP 3 news for each topic...")
     news_by_topic = {}
     
-    for topic_id in all_topics:
+    for topic_id in all_subscriber_topics:
         print(f"   • Fetching news for: {TOPIC_NAMES.get(topic_id, topic_id)}")
-        news_articles = collect_news_for_topic(topic_id, limit=3)
+        news_articles = collect_news_for_topic(topic_id, limit=3)  # TOP 3 NEWS
         news_by_topic[topic_id] = news_articles
         print(f"     ✓ Found {len(news_articles)} articles")
     
-    # Get subscribers for all topics
-    print("\n👥 Getting subscribers...")
-    subscribers = get_subscribers_by_topics(all_topics)
-    print(f"   ✓ Found {len(subscribers)} subscribers")
-    
-    if not subscribers:
-        print("\n⚠️  No subscribers found!")
-        return
-    
-    # Send newsletter to each subscriber
-    print("\n📨 Sending newsletters...")
+    # Send newsletter to each subscriber based on their preferences
+    print("\n📨 Sending personalized newsletters...")
     success_count = 0
     error_count = 0
     
     for subscriber in subscribers:
-        email = subscriber['email']
-        name = subscriber.get('name', 'User')
-        topics = subscriber['topics']
+        email = subscriber.get('user_email')
+        name = subscriber.get('user_name', 'User')
+        topics = subscriber.get('topics', [])
+        
+        if not email or not topics:
+            print(f"   ⚠️ Skipping invalid subscriber: {email}")
+            continue
         
         print(f"\n   → Sending to: {email}")
-        print(f"      Topics: {', '.join([TOPIC_NAMES.get(t, t) for t in topics])}")
+        print(f"      Name: {name}")
+        print(f"      Topics ({len(topics)}): {', '.join([TOPIC_NAMES.get(t, t) for t in topics])}")
         
-        # Generate personalized newsletter
+        # Generate personalized newsletter with only their subscribed topics
         html_content = generate_newsletter_html(name, topics, news_by_topic)
         
         # Generate subject line
