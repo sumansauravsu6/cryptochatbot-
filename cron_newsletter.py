@@ -119,7 +119,8 @@ def get_news_for_topic(topic_id, limit=3):
 def send_newsletter_email(email, subject, html_content):
     """Send email using Brevo API"""
     api_key = os.getenv('BREVO_API_KEY')
-    sender_email = os.getenv('BREVO_SENDER_EMAIL', 'sumansauravsu9@gmail.com')
+    # Use a verified sender - sumansauravsu6@gmail.com is verified in Brevo
+    sender_email = os.getenv('BREVO_SENDER_EMAIL', 'sumansauravsu6@gmail.com')
     
     print(f"   📤 Sending to {email} from {sender_email}")
     
