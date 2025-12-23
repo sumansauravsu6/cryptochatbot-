@@ -121,6 +121,8 @@ def send_newsletter_email(email, subject, html_content):
     api_key = os.getenv('BREVO_API_KEY')
     sender_email = os.getenv('BREVO_SENDER_EMAIL', 'sumansauravsu9@gmail.com')
     
+    print(f"   📤 Sending to {email} from {sender_email}")
+    
     headers = {
         'accept': 'application/json',
         'content-type': 'application/json',
@@ -140,6 +142,7 @@ def send_newsletter_email(email, subject, html_content):
             headers=headers,
             json=data
         )
+        print(f"   📬 Brevo response: {response.status_code} - {response.text}")
         return response.status_code in [200, 201]
     except Exception as e:
         print(f"   Error sending email: {e}")
