@@ -81,23 +81,26 @@ def get_news_for_topic(topic_id, limit=3):
     """Fetch news from CryptoPanic API"""
     api_key = os.getenv('CRYPTOPANIC_API_KEY')
     
-    # Map topics to CryptoPanic filters
-    filter_map = {
-        'bitcoin': 'currencies=BTC',
-        'ethereum': 'currencies=ETH',
-        'altcoins': 'currencies=SOL,ADA,XRP,DOT',
-        'defi': 'currencies=UNI,AAVE,LINK',
-        'nft-cryptopunks': 'currencies=ETH',
-        'nft-bored-ape': 'currencies=ETH',
-        'nft-art': 'currencies=ETH',
-        'trading': 'filter=rising',
-        'mining': 'filter=important',
-        'regulation': 'filter=important',
-        'market-analysis': 'filter=bullish,bearish'
+    # Map topics to CryptoPanic currencies/filters
+    currency_map = {
+        'bitcoin': 'BTC',
+        'ethereum': 'ETH',
+        'altcoins': 'SOL,ADA,XRP,DOT',
+        'defi': 'UNI,AAVE,LINK',
+        'nft-cryptopunks': 'ETH',
+        'nft-bored-ape': 'ETH',
+        'nft-art': 'ETH',
+        'nft-gaming': 'ETH',
+        'nft-marketplace': 'ETH',
+        'nft-metaverse': 'ETH',
+        'trading': 'BTC,ETH',
+        'mining': 'BTC',
+        'regulation': 'BTC',
+        'market-analysis': 'BTC,ETH'
     }
     
-    filter_param = filter_map.get(topic_id, 'filter=important')
-    url = f"https://cryptopanic.com/api/v1/posts/?auth_token={api_key}&{filter_param}&public=true"
+    currencies = currency_map.get(topic_id, 'BTC')
+    url = f"https://cryptopanic.com/api/v1/posts/?auth_token={api_key}&currencies={currencies}&kind=news&public=true"
     
     try:
         response = requests.get(url, timeout=10)
