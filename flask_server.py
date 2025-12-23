@@ -44,7 +44,8 @@ from newsletter_api import (
 app = Flask(__name__)
 
 # Configure CORS for production - allow frontend URLs
-FRONTEND_URLS = os.getenv('FRONTEND_URLS', 'http://localhost:3000').split(',')
+# Use FRONTEND_URLS env var, or allow all origins with "*" for development
+FRONTEND_URLS = os.getenv('FRONTEND_URLS', '*').split(',')
 CORS(app, origins=FRONTEND_URLS, supports_credentials=True)
 
 # Tools dictionary for function calling
