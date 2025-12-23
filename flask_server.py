@@ -486,91 +486,130 @@ def get_trending():
 
 @app.route('/news', methods=['GET'])
 def get_crypto_news():
-    """Get latest crypto news from CoinDesk RSS feed"""
+    """Get latest crypto news from multiple RSS feeds with pagination"""
     try:
         import xml.etree.ElementTree as ET
         from email.utils import parsedate_to_datetime
         
         search_query = request.args.get('search', '').lower().strip()
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 10))
         
-        # CoinDesk RSS Feed - reliable, has images, source, URLs
-        rss_url = "https://www.coindesk.com/arc/outboundfeeds/rss/"
+        # Multiple crypto news RSS feeds for more content
+        rss_feeds = [
+            {"url": "https://www.coindesk.com/arc/outboundfeeds/rss/", "source": "CoinDesk"},
+            {"url": "https://cointelegraph.com/rss", "source": "Cointelegraph"},
+            {"url": "https://decrypt.co/feed", "source": "Decrypt"},
+            {"url": "https://bitcoinmagazine.com/feed", "source": "Bitcoin Magazine"},
+        ]
         
-        response = requests.get(rss_url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
+        all_news_items = []
         
-        if response.status_code == 200:
-            root = ET.fromstring(response.content)
-            items = root.findall('.//item')
-            news_items = []
-            
-            # XML namespaces
-            ns = {'media': 'http://search.yahoo.com/mrss/', 'dc': 'http://purl.org/dc/elements/1.1/'}
-            
-            for item in items[:15]:  # Get more items for filtering
-                title = item.find('title').text if item.find('title') is not None else 'No title'
-                link = item.find('link').text if item.find('link') is not None else ''
-                description = item.find('description').text if item.find('description') is not None else ''
-                pub_date = item.find('pubDate').text if item.find('pubDate') is not None else ''
+        # XML namespaces
+        ns = {'media': 'http://search.yahoo.com/mrss/', 'dc': 'http://purl.org/dc/elements/1.1/', 'content': 'http://purl.org/rss/1.0/modules/content/'}
+        
+        for feed in rss_feeds:
+            try:
+                response = requests.get(feed['url'], headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
                 
-                # Get image from media:content
-                media = item.find('media:content', ns)
-                imageurl = media.get('url', '') if media is not None else ''
-                
-                # Get categories
-                categories = [cat.text for cat in item.findall('category') if cat.text]
-                
-                # Get author
-                creator = item.find('dc:creator', ns)
-                author = creator.text if creator is not None else 'CoinDesk'
-                
-                # Convert pub_date to timestamp
-                try:
-                    dt = parsedate_to_datetime(pub_date)
-                    timestamp = int(dt.timestamp())
-                except:
-                    timestamp = pub_date
-                
-                # Filter by search query if provided
-                if search_query:
-                    title_lower = title.lower()
-                    categories_lower = [c.lower() for c in categories]
-                    if not (search_query in title_lower or 
-                            any(search_query in cat for cat in categories_lower) or
-                            search_query in description.lower()):
-                        continue
-                
-                news_items.append({
-                    'id': hash(link),
-                    'title': title,
-                    'description': description,
-                    'source': 'CoinDesk',
-                    'url': link,
-                    'imageurl': imageurl,
-                    'published_at': timestamp,
-                    'tags': '',
-                    'categories': categories[:5],
-                    'votes': {'upvotes': 0, 'downvotes': 0},
-                    'author': author
-                })
-                
-                if len(news_items) >= 10:
-                    break
-            
-            return jsonify({
-                'success': True,
-                'source_api': 'CoinDesk',
-                'search_query': search_query if search_query else None,
-                'count': len(news_items),
-                'news': news_items
-            })
-        else:
-            # Fallback to CryptoPanic if CoinDesk fails
-            print(f"CoinDesk RSS returned status {response.status_code}, falling back")
-            return get_crypto_news_fallback(search_query)
+                if response.status_code == 200:
+                    root = ET.fromstring(response.content)
+                    items = root.findall('.//item')
+                    
+                    for item in items:
+                        title_elem = item.find('title')
+                        title = title_elem.text if title_elem is not None and title_elem.text else 'No title'
+                        
+                        link_elem = item.find('link')
+                        link = link_elem.text if link_elem is not None and link_elem.text else ''
+                        
+                        desc_elem = item.find('description')
+                        description = desc_elem.text if desc_elem is not None and desc_elem.text else ''
+                        
+                        pub_date_elem = item.find('pubDate')
+                        pub_date = pub_date_elem.text if pub_date_elem is not None and pub_date_elem.text else ''
+                        
+                        # Get image from media:content or media:thumbnail
+                        imageurl = ''
+                        media = item.find('media:content', ns)
+                        if media is not None:
+                            imageurl = media.get('url', '')
+                        if not imageurl:
+                            media_thumb = item.find('media:thumbnail', ns)
+                            if media_thumb is not None:
+                                imageurl = media_thumb.get('url', '')
+                        if not imageurl:
+                            # Try enclosure (common in RSS feeds)
+                            enclosure = item.find('enclosure')
+                            if enclosure is not None and 'image' in enclosure.get('type', ''):
+                                imageurl = enclosure.get('url', '')
+                        
+                        # Get categories
+                        categories = [cat.text for cat in item.findall('category') if cat.text]
+                        
+                        # Get author
+                        creator = item.find('dc:creator', ns)
+                        author = creator.text if creator is not None else feed['source']
+                        
+                        # Convert pub_date to timestamp
+                        try:
+                            dt = parsedate_to_datetime(pub_date)
+                            timestamp = int(dt.timestamp())
+                        except:
+                            timestamp = 0
+                        
+                        # Filter by search query if provided
+                        if search_query:
+                            title_lower = title.lower()
+                            categories_lower = [c.lower() for c in categories]
+                            if not (search_query in title_lower or 
+                                    any(search_query in cat for cat in categories_lower) or
+                                    search_query in description.lower()):
+                                continue
+                        
+                        all_news_items.append({
+                            'id': hash(link),
+                            'title': title,
+                            'description': description[:500] if description else '',
+                            'source': feed['source'],
+                            'url': link,
+                            'imageurl': imageurl,
+                            'published_at': timestamp,
+                            'tags': '',
+                            'categories': categories[:5],
+                            'votes': {'upvotes': 0, 'downvotes': 0},
+                            'author': author
+                        })
+            except Exception as feed_error:
+                print(f"Error fetching {feed['source']}: {feed_error}")
+                continue
+        
+        # Sort all news by timestamp (newest first)
+        all_news_items.sort(key=lambda x: x['published_at'], reverse=True)
+        
+        # Pagination
+        total_items = len(all_news_items)
+        start_idx = (page - 1) * per_page
+        end_idx = start_idx + per_page
+        paginated_items = all_news_items[start_idx:end_idx]
+        
+        has_more = end_idx < total_items
+        
+        return jsonify({
+            'success': True,
+            'source_api': 'Multiple RSS Feeds',
+            'search_query': search_query if search_query else None,
+            'page': page,
+            'per_page': per_page,
+            'total': total_items,
+            'has_more': has_more,
+            'count': len(paginated_items),
+            'news': paginated_items
+        })
             
     except Exception as e:
         # Try fallback on any error
-        print(f"CoinDesk RSS error: {e}, falling back to CryptoPanic")
+        print(f"RSS feeds error: {e}, falling back to CryptoPanic")
         try:
             return get_crypto_news_fallback(request.args.get('search', ''))
         except:

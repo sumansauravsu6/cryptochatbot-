@@ -16,12 +16,13 @@ export const ENDPOINTS = {
   }
 };
 
-// Helper to build news URL with optional search query
-export const getNewsUrl = (searchQuery) => {
+// Helper to build news URL with optional search query and pagination
+export const getNewsUrl = (searchQuery, page = 1, perPage = 10) => {
+  let url = `${ENDPOINTS.news}?page=${page}&per_page=${perPage}`;
   if (searchQuery) {
-    return `${ENDPOINTS.news}?search=${encodeURIComponent(searchQuery)}`;
+    url += `&search=${encodeURIComponent(searchQuery)}`;
   }
-  return ENDPOINTS.news;
+  return url;
 };
 
 export default API_URL;

@@ -612,6 +612,41 @@
   margin: 0 0 20px 0;
 }
 
+/* Loading More */
+.loading-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  color: #667eea;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.loading-more .spinner-icon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* End of News */
+.end-of-news {
+  text-align: center;
+  padding: 24px;
+  color: #6c757d;
+  font-size: 14px;
+  border-top: 1px solid #e9ecef;
+  margin-top: 20px;
+}
+
+.end-of-news p {
+  margin: 0;
+}
+
 /* Dark Mode */
 .dark .newsboard-container {
   background: #1a1a2e;

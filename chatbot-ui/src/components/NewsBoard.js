@@ -1,33 +1,56 @@
-import React, { useState, useEffect } from 'react';
-import { X, Search, TrendingUp, ExternalLink, ThumbsUp, ThumbsDown, AlertCircle, Clock, ArrowLeft } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { X, Search, TrendingUp, ExternalLink, ThumbsUp, ThumbsDown, AlertCircle, Clock, ArrowLeft, Loader } from 'lucide-react';
 import { getNewsUrl } from '../config/api';
 import './NewsBoard.css';
 
 const NewsBoard = ({ onClose }) => {
   const [newsData, setNewsData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [selectedArticle, setSelectedArticle] = useState(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [total, setTotal] = useState(0);
+  
+  const observer = useRef();
+  const lastNewsElementRef = useCallback(node => {
+    if (loading || loadingMore) return;
+    if (observer.current) observer.current.disconnect();
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        loadMoreNews();
+      }
+    });
+    if (node) observer.current.observe(node);
+  }, [loading, loadingMore, hasMore]);
 
   useEffect(() => {
     fetchNews();
   }, []);
 
-  const fetchNews = async (query = '') => {
-    setLoading(true);
+  const fetchNews = async (query = '', resetPage = true) => {
+    if (resetPage) {
+      setLoading(true);
+      setPage(1);
+      setNewsData([]);
+    }
     setError(null);
     setIsSearching(!!query);
     
     try {
-      const url = getNewsUrl(query);
+      const url = getNewsUrl(query, 1, 10);
       
       const response = await fetch(url);
       const data = await response.json();
       
       if (data.success) {
         setNewsData(data.news || []);
+        setHasMore(data.has_more || false);
+        setTotal(data.total || 0);
+        setPage(1);
       } else {
         setError(data.error || 'Failed to fetch news');
       }
@@ -36,6 +59,29 @@ const NewsBoard = ({ onClose }) => {
       console.error('News fetch error:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMoreNews = async () => {
+    if (loadingMore || !hasMore) return;
+    
+    setLoadingMore(true);
+    const nextPage = page + 1;
+    
+    try {
+      const url = getNewsUrl(isSearching ? searchQuery : '', nextPage, 10);
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (data.success) {
+        setNewsData(prev => [...prev, ...(data.news || [])]);
+        setHasMore(data.has_more || false);
+        setPage(nextPage);
+      }
+    } catch (err) {
+      console.error('Load more error:', err);
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -239,70 +285,91 @@ const NewsBoard = ({ onClose }) => {
               )}
             </div>
           ) : (
-            <div className="news-grid">
-              {newsData.map((article) => (
-                <div key={article.id} className="news-card" onClick={() => openArticle(article)}>
-                  {article.imageurl && (
-                    <div className="news-card-image">
-                      <img 
-                        src={article.imageurl} 
-                        alt={article.title}
-                        onError={(e) => e.target.parentElement.style.display = 'none'}
-                      />
-                    </div>
-                  )}
-                  <div className="news-card-content">
-                    <div className="news-card-header">
-                      <div className="news-source">
-                        <span className="source-name">{article.source}</span>
-                        <span className="news-time">
-                          <Clock size={12} />
-                          {formatDate(article.published_at)}
-                        </span>
-                      </div>
-                      {article.categories && article.categories.length > 0 && (
-                        <div className="news-currencies">
-                          {article.categories.slice(0, 3).map((category, idx) => (
-                            <span key={idx} className="currency-badge">{category}</span>
-                          ))}
-                          {article.categories.length > 3 && (
-                            <span className="currency-badge more">+{article.categories.length - 3}</span>
-                          )}
+            <>
+              <div className="news-grid">
+                {newsData.map((article, index) => {
+                  const isLastElement = index === newsData.length - 1;
+                  return (
+                    <div 
+                      key={`${article.id}-${index}`} 
+                      className="news-card" 
+                      onClick={() => openArticle(article)}
+                      ref={isLastElement ? lastNewsElementRef : null}
+                    >
+                      {article.imageurl && (
+                        <div className="news-card-image">
+                          <img 
+                            src={article.imageurl} 
+                            alt={article.title}
+                            onError={(e) => e.target.parentElement.style.display = 'none'}
+                          />
                         </div>
                       )}
-                    </div>
-                    
-                    <h3 className="news-title">{article.title}</h3>
-                    
-                    <div className="news-footer">
-                      <div className="news-votes">
-                        {article.votes && article.votes.upvotes > 0 && (
-                          <span className="vote-count positive">
-                            <ThumbsUp size={14} />
-                            {article.votes.upvotes}
-                          </span>
-                        )}
+                      <div className="news-card-content">
+                        <div className="news-card-header">
+                          <div className="news-source">
+                            <span className="source-name">{article.source}</span>
+                            <span className="news-time">
+                              <Clock size={12} />
+                              {formatDate(article.published_at)}
+                            </span>
+                          </div>
+                          {article.categories && article.categories.length > 0 && (
+                            <div className="news-currencies">
+                              {article.categories.slice(0, 3).map((category, idx) => (
+                                <span key={idx} className="currency-badge">{category}</span>
+                              ))}
+                              {article.categories.length > 3 && (
+                                <span className="currency-badge more">+{article.categories.length - 3}</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        
+                        <h3 className="news-title">{article.title}</h3>
+                        
+                        <div className="news-footer">
+                          <div className="news-votes">
+                            {article.votes && article.votes.upvotes > 0 && (
+                              <span className="vote-count positive">
+                                <ThumbsUp size={14} />
+                                {article.votes.upvotes}
+                              </span>
+                            )}
+                          </div>
+                          {article.url ? (
+                            <a 
+                              href={article.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="read-more-link"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              Read article <ExternalLink size={14} />
+                            </a>
+                          ) : (
+                            <span className="read-more">
+                              Read more <ExternalLink size={14} />
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      {article.url ? (
-                        <a 
-                          href={article.url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="read-more-link"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          Read article <ExternalLink size={14} />
-                        </a>
-                      ) : (
-                        <span className="read-more">
-                          Read more <ExternalLink size={14} />
-                        </span>
-                      )}
                     </div>
-                  </div>
+                  );
+                })}
+              </div>
+              {loadingMore && (
+                <div className="loading-more">
+                  <Loader className="spinner-icon" size={24} />
+                  <span>Loading more news...</span>
                 </div>
-              ))}
-            </div>
+              )}
+              {!hasMore && newsData.length > 0 && (
+                <div className="end-of-news">
+                  <p>You've reached the end • {total} articles total</p>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
