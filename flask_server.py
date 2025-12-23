@@ -486,82 +486,91 @@ def get_trending():
 
 @app.route('/news', methods=['GET'])
 def get_crypto_news():
-    """Get latest crypto news from CryptoCompare API (same as newsletter)"""
+    """Get latest crypto news from CoinDesk RSS feed"""
     try:
-        search_query = request.args.get('search', '')
+        import xml.etree.ElementTree as ET
+        from email.utils import parsedate_to_datetime
         
-        # CryptoCompare News API - same API used in newsletter
-        base_url = "https://min-api.cryptocompare.com/data/v2/news/"
+        search_query = request.args.get('search', '').lower().strip()
         
-        params = {
-            "lang": "EN"
-        }
+        # CoinDesk RSS Feed - reliable, has images, source, URLs
+        rss_url = "https://www.coindesk.com/arc/outboundfeeds/rss/"
         
-        # If search query provided, filter for specific currency
-        if search_query:
-            search_query_clean = search_query.strip().lower()
-            currency_code = search_query.upper()
-            
-            # Try to find the symbol from coins.json
-            for coin in COINS_LIST:
-                if coin['id'] == search_query_clean or coin['name'].lower() == search_query_clean:
-                    currency_code = coin['symbol'].upper()
-                    break
-            
-            params['categories'] = currency_code
-        
-        response = requests.get(base_url, params=params, timeout=10)
+        response = requests.get(rss_url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
         
         if response.status_code == 200:
-            data = response.json()
+            root = ET.fromstring(response.content)
+            items = root.findall('.//item')
             news_items = []
             
-            # Parse news articles from CryptoCompare
-            raw_data = data.get('Data', [])
-            if not raw_data:
-                # CryptoCompare returned empty data, use fallback
-                print(f"CryptoCompare returned empty Data, falling back to CryptoPanic")
-                return get_crypto_news_fallback(search_query)
+            # XML namespaces
+            ns = {'media': 'http://search.yahoo.com/mrss/', 'dc': 'http://purl.org/dc/elements/1.1/'}
             
-            for item in raw_data[:10]:
-                # Extract categories/currencies
-                categories = item.get('categories', '').split('|')
+            for item in items[:15]:  # Get more items for filtering
+                title = item.find('title').text if item.find('title') is not None else 'No title'
+                link = item.find('link').text if item.find('link') is not None else ''
+                description = item.find('description').text if item.find('description') is not None else ''
+                pub_date = item.find('pubDate').text if item.find('pubDate') is not None else ''
                 
-                # Get source info
-                source_info = item.get('source_info', {})
-                source_name = source_info.get('name', item.get('source', 'Unknown'))
+                # Get image from media:content
+                media = item.find('media:content', ns)
+                imageurl = media.get('url', '') if media is not None else ''
+                
+                # Get categories
+                categories = [cat.text for cat in item.findall('category') if cat.text]
+                
+                # Get author
+                creator = item.find('dc:creator', ns)
+                author = creator.text if creator is not None else 'CoinDesk'
+                
+                # Convert pub_date to timestamp
+                try:
+                    dt = parsedate_to_datetime(pub_date)
+                    timestamp = int(dt.timestamp())
+                except:
+                    timestamp = pub_date
+                
+                # Filter by search query if provided
+                if search_query:
+                    title_lower = title.lower()
+                    categories_lower = [c.lower() for c in categories]
+                    if not (search_query in title_lower or 
+                            any(search_query in cat for cat in categories_lower) or
+                            search_query in description.lower()):
+                        continue
                 
                 news_items.append({
-                    'id': item.get('id'),
-                    'title': item.get('title', 'No title'),
-                    'description': item.get('body', ''),  # Full article body
-                    'source': source_name,
-                    'url': item.get('url', ''),  # Direct link to article
-                    'imageurl': item.get('imageurl', ''),  # Article image
-                    'published_at': item.get('published_on', ''),
-                    'tags': item.get('tags', ''),
-                    'categories': [cat.strip() for cat in categories if cat.strip()],
-                    'votes': {
-                        'upvotes': item.get('upvotes', 0),
-                        'downvotes': item.get('downvotes', 0)
-                    },
-                    'lang': item.get('lang', 'EN')
+                    'id': hash(link),
+                    'title': title,
+                    'description': description,
+                    'source': 'CoinDesk',
+                    'url': link,
+                    'imageurl': imageurl,
+                    'published_at': timestamp,
+                    'tags': '',
+                    'categories': categories[:5],
+                    'votes': {'upvotes': 0, 'downvotes': 0},
+                    'author': author
                 })
+                
+                if len(news_items) >= 10:
+                    break
             
             return jsonify({
                 'success': True,
-                'source_api': 'CryptoCompare',
+                'source_api': 'CoinDesk',
                 'search_query': search_query if search_query else None,
                 'count': len(news_items),
                 'news': news_items
             })
         else:
-            # Fallback to CryptoPanic if CryptoCompare fails
-            print(f"CryptoCompare API returned status {response.status_code}, falling back")
+            # Fallback to CryptoPanic if CoinDesk fails
+            print(f"CoinDesk RSS returned status {response.status_code}, falling back")
             return get_crypto_news_fallback(search_query)
             
     except Exception as e:
         # Try fallback on any error
+        print(f"CoinDesk RSS error: {e}, falling back to CryptoPanic")
         try:
             return get_crypto_news_fallback(request.args.get('search', ''))
         except:
