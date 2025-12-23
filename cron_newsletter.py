@@ -100,10 +100,18 @@ def get_news_for_topic(topic_id, limit=3):
     }
     
     currencies = currency_map.get(topic_id, 'BTC')
-    url = f"https://cryptopanic.com/api/v1/posts/?auth_token={api_key}&currencies={currencies}&kind=news&public=true"
+    
+    # Use params like the working cryptopanic_api.py - filter is REQUIRED
+    url = f"https://cryptopanic.com/api/v1/posts/"
+    params = {
+        'auth_token': api_key,
+        'currencies': currencies,
+        'filter': 'rising',
+        'kind': 'news'
+    }
     
     try:
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, params=params, timeout=10)
         response.raise_for_status()
         data = response.json()
         return data.get('results', [])[:limit]
