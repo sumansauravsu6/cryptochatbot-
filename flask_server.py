@@ -518,12 +518,19 @@ def get_crypto_news():
             news_items = []
             
             # Parse news articles from CryptoCompare
-            for item in data.get('Data', [])[:10]:
+            news_data = data.get('Data', [])
+            if news_data is None:
+                news_data = []
+            # Limit to first 10 items
+            news_data = list(news_data)[:10]
+            
+            for item in news_data:
                 # Extract categories/currencies
-                categories = item.get('categories', '').split('|')
+                categories_str = item.get('categories', '') or ''
+                categories = categories_str.split('|')
                 
                 # Get source info
-                source_info = item.get('source_info', {})
+                source_info = item.get('source_info') or {}
                 source_name = source_info.get('name', item.get('source', 'Unknown'))
                 
                 news_items.append({
@@ -556,6 +563,7 @@ def get_crypto_news():
             }), response.status_code
             
     except Exception as e:
+        import traceback
         return jsonify({
             'success': False,
             'error': str(e)
