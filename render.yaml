@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: cryptochatbot-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn flask_server:app
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: GROQ_API_KEY
+        sync: false
+      - key: COINGECKO_API_KEY
+        sync: false
+      - key: CRYPTOPANIC_API_KEY
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: FRONTEND_URLS
+        sync: false
