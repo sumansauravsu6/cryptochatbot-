@@ -53,8 +53,16 @@ const NewsBoard = ({ onClose }) => {
   };
 
   const formatDate = (timestamp) => {
-    // CryptoCompare returns Unix timestamp in seconds
-    const date = new Date(timestamp * 1000); // Convert to milliseconds
+    // Handle both Unix timestamp (seconds) and ISO date strings
+    let date;
+    if (typeof timestamp === 'string' && timestamp.includes('T')) {
+      // ISO date string (e.g., "2025-12-22T09:55:55Z")
+      date = new Date(timestamp);
+    } else {
+      // Unix timestamp in seconds - convert to milliseconds
+      date = new Date(timestamp * 1000);
+    }
+    
     const now = new Date();
     const diffMs = now - date;
     const diffMins = Math.floor(diffMs / 60000);

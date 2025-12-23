@@ -497,7 +497,8 @@ def get_crypto_news():
         params = {
             "auth_token": api_key,
             "public": "true",
-            "kind": "news"
+            "kind": "news",
+            "filter": "rising"  # Get trending/rising news
         }
         
         # If search query provided, filter for specific currency
@@ -519,42 +520,36 @@ def get_crypto_news():
             data = response.json()
             news_items = []
             
-            # Parse news articles from CryptoPanic
+            # Parse news articles from CryptoPanic v2
             results = data.get('results', [])
             for item in results[:10]:
-                # Extract currencies mentioned
-                currencies = item.get('currencies', [])
-                currency_codes = [c.get('code', '') for c in currencies] if currencies else []
+                # Build CryptoPanic article URL from slug
+                slug = item.get('slug', '')
+                article_id = item.get('id', '')
+                article_url = f"https://cryptopanic.com/news/{article_id}/{slug}" if slug and article_id else ''
                 
-                # Get source info
-                source_info = item.get('source', {})
-                source_name = source_info.get('title', 'Unknown') if isinstance(source_info, dict) else str(source_info)
-                
-                # Get votes
-                votes = item.get('votes', {})
+                # Extract currency codes from slug (they often mention coin names)
+                currency_codes = []
+                title_lower = item.get('title', '').lower()
+                for coin in COINS_LIST[:50]:  # Check top 50 coins
+                    if coin['symbol'].lower() in title_lower or coin['name'].lower() in title_lower:
+                        currency_codes.append(coin['symbol'].upper())
                 
                 news_items.append({
-                    'id': item.get('id'),
+                    'id': article_id,
                     'title': item.get('title', 'No title'),
-                    'description': item.get('title', ''),  # CryptoPanic doesn't provide full body in API
-                    'source': source_name,
-                    'url': item.get('url', ''),
-                    'imageurl': '',  # CryptoPanic doesn't provide images in API
+                    'description': item.get('description') or item.get('title', ''),
+                    'source': 'CryptoPanic',  # v2 API doesn't provide source
+                    'url': article_url,
+                    'imageurl': '',  # v2 API doesn't provide images
                     'published_at': item.get('published_at', ''),
                     'tags': '',
-                    'categories': currency_codes,
+                    'categories': currency_codes[:5],  # Limit to 5 currencies
                     'votes': {
-                        'positive': votes.get('positive', 0),
-                        'negative': votes.get('negative', 0),
-                        'important': votes.get('important', 0),
-                        'liked': votes.get('liked', 0),
-                        'disliked': votes.get('disliked', 0),
-                        'lol': votes.get('lol', 0),
-                        'toxic': votes.get('toxic', 0),
-                        'saved': votes.get('saved', 0),
-                        'comments': votes.get('comments', 0)
+                        'upvotes': 0,
+                        'downvotes': 0
                     },
-                    'domain': item.get('domain', ''),
+                    'domain': 'cryptopanic.com',
                     'kind': item.get('kind', 'news')
                 })
             
