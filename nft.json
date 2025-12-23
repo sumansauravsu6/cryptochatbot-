@@ -1,0 +1,702 @@
+[
+  {
+    "id": "autoglyphs",
+    "contract_address": "0xd4e4078ca3495de5b1d4db434bebc5a986197782",
+    "name": "Autoglyphs",
+    "asset_platform_id": "ethereum",
+    "symbol": "\u2635"
+  },
+  {
+    "id": "meebits",
+    "contract_address": "0x7Bd29408f11D2bFC23c34f18275bBf23bB716Bc7",
+    "name": "Meebits",
+    "asset_platform_id": "ethereum",
+    "symbol": "\u2687"
+  },
+  {
+    "id": "spacepunksclub",
+    "contract_address": "0x45db714f24f5a313569c41683047f1d49e78ba07",
+    "name": "SpacePunksClub",
+    "asset_platform_id": "ethereum",
+    "symbol": "\u2687"
+  },
+  {
+    "id": "mooncats-acclimated",
+    "contract_address": "0xc3f733ca98e0dad0386979eb96fb1722a1a05e69",
+    "name": "MoonCats - Acclimated",
+    "asset_platform_id": "ethereum",
+    "symbol": "\ud83d\ude3a"
+  },
+  {
+    "id": "beranames",
+    "contract_address": "0x5ede4408e78c36c3ab16c5813c418624c2823b27",
+    "name": "Beranames",
+    "asset_platform_id": "berachain",
+    "symbol": "\ud83d\udc3b\ud83e\udeaa"
+  },
+  {
+    "id": "0n1force",
+    "contract_address": "0x3bf2922f4520a8ba0c2efc3d2a1539678dad5e9d",
+    "name": "0N1 Force",
+    "asset_platform_id": "ethereum",
+    "symbol": "0N1"
+  },
+  {
+    "id": "0xmons",
+    "contract_address": "0x0427743DF720801825a5c82e0582B1E915E0F750",
+    "name": "0xmons",
+    "asset_platform_id": "ethereum",
+    "symbol": "0XMON"
+  },
+  {
+    "id": "100-web-characters",
+    "contract_address": "0xc4252cadeff39a78d92b3150f08e4cadf88a8095",
+    "name": "100 Web Characters",
+    "asset_platform_id": "avalanche",
+    "symbol": "100WEBCHARS"
+  },
+  {
+    "id": "10ktf",
+    "contract_address": "0x0cfb5d82be2b949e8fa73a656df91821e2ad99fd",
+    "name": "10KTF",
+    "asset_platform_id": "ethereum",
+    "symbol": "10KTF"
+  },
+  {
+    "id": "10ktf-combat-gear",
+    "contract_address": "0xe75ef1ec029c71c9db0f968e389331609312aa22",
+    "name": "10KTF Combat Gear",
+    "asset_platform_id": "ethereum",
+    "symbol": "10KTF"
+  },
+  {
+    "id": "10ktf-stockroom",
+    "contract_address": "0x7daec605e9e2a1717326eedfd660601e2753a057",
+    "name": "10KTF Stockroom",
+    "asset_platform_id": "ethereum",
+    "symbol": "10KTF-STOCKROOM"
+  },
+  {
+    "id": "1111-by-kevin-abosch",
+    "contract_address": "0x7F72528229F85C99D8843C0317eF91F4A2793Edf",
+    "name": "1111 by Kevin Abosch",
+    "asset_platform_id": "ethereum",
+    "symbol": "1111"
+  },
+  {
+    "id": "1337-skulls",
+    "contract_address": "0x9251dEC8DF720C2ADF3B6f46d968107cbBADf4d4",
+    "name": "1337 skulls",
+    "asset_platform_id": "ethereum",
+    "symbol": "1337skulls"
+  },
+  {
+    "id": "50-years-of-atari",
+    "contract_address": "0x9231f13343f871b051fa5002e8c04beed91b4f62",
+    "name": "50 Years of Atari",
+    "asset_platform_id": "ethereum",
+    "symbol": "1972"
+  },
+  {
+    "id": "1989-sisters",
+    "contract_address": "0x657fabdb226abc59227e02e94089afbc67a597fe",
+    "name": "1989 Sisters",
+    "asset_platform_id": "ethereum",
+    "symbol": "1989-Sisters"
+  },
+  {
+    "id": "1hype-fp",
+    "contract_address": "0xdbe8adac8f0320eb5171896bfe9be7f82ad424ea",
+    "name": "1HYPE FP",
+    "asset_platform_id": "hyperevm",
+    "symbol": "1HYP"
+  },
+  {
+    "id": "2048-by-harto",
+    "contract_address": "ORDINALS_UNKNOWN_CONTRACT_ADDRESS_2048",
+    "name": "2048 by Harto",
+    "asset_platform_id": "ordinals",
+    "symbol": "2048"
+  },
+  {
+    "id": "matr1x-2061",
+    "contract_address": "0x9a27d13a4896baa03843a0728dff6007d665f8ee",
+    "name": "Matr1x 2061",
+    "asset_platform_id": "ethereum",
+    "symbol": "2061"
+  },
+  {
+    "id": "21lawsofbigcryptobusiness",
+    "contract_address": "c9dbd6fb7615130651b8d7847c4f535aaf6dc8a92c1e5a184ea4474cb9e8c4dci0",
+    "name": " 21LawsOfBigCryptoBusiness ",
+    "asset_platform_id": "ordinals",
+    "symbol": "21BIGBUSINESS"
+  },
+  {
+    "id": "3landers",
+    "contract_address": "0xb4d06d46a8285f4ec79fd294f78a881799d8ced9",
+    "name": "3Landers",
+    "asset_platform_id": "ethereum",
+    "symbol": "3L"
+  },
+  {
+    "id": "michelin-3xplorer-club",
+    "contract_address": "0x87ec044115cd9e0e09221031441640ee48b3a8f2",
+    "name": "Michelin 3xplorer Club",
+    "asset_platform_id": "ethereum",
+    "symbol": "3xplr"
+  },
+  {
+    "id": "5-boro-bodega-x-reddit-collectible-avatars",
+    "contract_address": "0x27B37E4Befacc50B02102d1E2117c4EA8A54bEFf",
+    "name": "5 Boro Bodega x Reddit Collectible Avatars",
+    "asset_platform_id": "polygon-pos",
+    "symbol": "5-BORO-BODEGA-X-REDDIT-COLLECTIBLE-AVATARS"
+  },
+  {
+    "id": "leveraged-labs",
+    "contract_address": null,
+    "name": "Leveraged Labs",
+    "asset_platform_id": "solana",
+    "symbol": "61APES"
+  },
+  {
+    "id": "6529-gradient",
+    "contract_address": "0x0c58ef43ff3032005e472cb5709f8908acb00205",
+    "name": "6529 Gradient",
+    "asset_platform_id": "ethereum",
+    "symbol": "6529G"
+  },
+  {
+    "id": "alienzone",
+    "contract_address": "0x10d2baeb37a4079fc62cc716b08e2452936424b1",
+    "name": "Alienzone",
+    "asset_platform_id": "arbitrum-one",
+    "symbol": "888 Alien"
+  },
+  {
+    "id": "888-inner-circle",
+    "contract_address": "0x36d30b3b85255473d27dd0f7fd8f35e36a9d6f06",
+    "name": "888 inner circle",
+    "asset_platform_id": "ethereum",
+    "symbol": "888-INNER-CIRCLE"
+  },
+  {
+    "id": "8liens",
+    "contract_address": "0x740c178e10662bBb050BDE257bFA318dEfE3cabC",
+    "name": "8liens NFT",
+    "asset_platform_id": "ethereum",
+    "symbol": "8liens"
+  },
+  {
+    "id": "8SIAN",
+    "contract_address": "0x198478f870d97d62d640368d111b979d7ca3c38f",
+    "name": "8SIAN",
+    "asset_platform_id": "ethereum",
+    "symbol": "8SIAN"
+  },
+  {
+    "id": "porsch-911",
+    "contract_address": "0xccdf1373040d9ca4b5be1392d1945c1dae4a862c",
+    "name": "PORSCHE 911",
+    "asset_platform_id": "ethereum",
+    "symbol": "911"
+  },
+  {
+    "id": "99-originals",
+    "contract_address": "0x1c49ed56da6be87b804bc1b8b817a259aa3132ed",
+    "name": "99 Originals",
+    "asset_platform_id": "ethereum",
+    "symbol": "99ORIG"
+  },
+  {
+    "id": "aurorians",
+    "contract_address": null,
+    "name": "Aurorians",
+    "asset_platform_id": "solana",
+    "symbol": "A"
+  },
+  {
+    "id": "angry-ape-army",
+    "contract_address": "0x77640cf3F89A4F1B5CA3A1e5c87f3F5B12ebf87e",
+    "name": "Angry Ape Army",
+    "asset_platform_id": "ethereum",
+    "symbol": "AAA"
+  },
+  {
+    "id": "anomaly-a-i-by-star-im",
+    "contract_address": "0x7a31c6726f358fad0783110a46ef489372fbfc65",
+    "name": "ANOMALY A.I. by Star Im",
+    "asset_platform_id": "ethereum",
+    "symbol": "AAI"
+  },
+  {
+    "id": "abstracted-ape-yacht-club",
+    "contract_address": "0x6a2b098c8ee75167296db222e18ee709d7c4b9d3",
+    "name": "Abstracted Ape Yacht Club",
+    "asset_platform_id": "abstract",
+    "symbol": "AAYC"
+  },
+  {
+    "id": "abc",
+    "contract_address": "",
+    "name": "ABC",
+    "asset_platform_id": "solana",
+    "symbol": "ABC"
+  },
+  {
+    "id": "adam-bomb-squad",
+    "contract_address": "0x7ab2352b1d2e185560494d5e577f9d3c238b78c5",
+    "name": "Adam Bomb Squad",
+    "asset_platform_id": "ethereum",
+    "symbol": "ABS"
+  },
+  {
+    "id": "abstract-rock",
+    "contract_address": "0x7a56ae317462d29a29ff147247cfb2cded2aab2e",
+    "name": "Abstract Rock",
+    "asset_platform_id": "abstract",
+    "symbol": "ABS"
+  },
+  {
+    "id": "abstract-pass-holder",
+    "contract_address": "0x841efbe8d2e9d95138c1fd9a19c5d4678bdac6b1",
+    "name": "Abstract Pass Holder",
+    "asset_platform_id": "abstract",
+    "symbol": "ABS"
+  },
+  {
+    "id": "abstractpunks",
+    "contract_address": "0x2df9fb70d4702c0fda7200de4e722cfe102e9908",
+    "name": "AbstractPunks",
+    "asset_platform_id": "abstract",
+    "symbol": "ABS"
+  },
+  {
+    "id": "abstract-pixel-rocks",
+    "contract_address": "0xe6470fbefcc40e06bc11844508142363db1bae81",
+    "name": "Abstract Pixel Rocks",
+    "asset_platform_id": "abstract",
+    "symbol": "ABS"
+  },
+  {
+    "id": "abstract-phunks",
+    "contract_address": "0x3e21326c0a2aa511b5c9035369b3a53ba385657f",
+    "name": "Abstract Phunks",
+    "asset_platform_id": "abstract",
+    "symbol": "ABS"
+  },
+  {
+    "id": "abstract-bots-corrupted",
+    "contract_address": "0xbce369bbf3e1ea0be7e11fdaee56d96e58f5ee1c",
+    "name": "Abstract Bots Corrupted",
+    "asset_platform_id": "abstract",
+    "symbol": "ABSBOT"
+  },
+  {
+    "id": "abstract-cats",
+    "contract_address": "0x8bcdf7a95dfc16407f1148597a01aa9308950ed4",
+    "name": "Abstract Cats",
+    "asset_platform_id": "abstract",
+    "symbol": "ABSCAT"
+  },
+  {
+    "id": "abstract-frens",
+    "contract_address": "0x1d3a9b857fa15b9f5fb5be1264ff31527f366115",
+    "name": "Abstract Frens",
+    "asset_platform_id": "abstract",
+    "symbol": "AbsFrens"
+  },
+  {
+    "id": "abstract-shark",
+    "contract_address": "0x859ec84a445bf2b46051649d0d6d7f183cc9eb56",
+    "name": "Abstract Shark",
+    "asset_platform_id": "abstract",
+    "symbol": "ABSH"
+  },
+  {
+    "id": "abstract-being-by-memphis",
+    "contract_address": "ORDINALS_UNKNOWN_CONTRACT_ADDRESS_ABSTRACTBEINGS",
+    "name": "Abstract Being by memphis",
+    "asset_platform_id": "ordinals",
+    "symbol": "ABSTRACTBEINGS"
+  },
+  {
+    "id": "abstract-ghosts",
+    "contract_address": "0x62bc693332d1a50273b3103a2cf3ed120771b09d",
+    "name": "Abstract Ghosts",
+    "asset_platform_id": "abstract",
+    "symbol": "abstract_ghosts"
+  },
+  {
+    "id": "abstract-hotdogs",
+    "contract_address": "0x265f307c1bdbb6f5d4b174d47f363ef5837be98b",
+    "name": "Abstract Hotdogs",
+    "asset_platform_id": "abstract",
+    "symbol": "abstract_hotdogs"
+  },
+  {
+    "id": "abstractors",
+    "contract_address": "0x66de4d3ad9a490e4f090d60bff1b82723150abb3",
+    "name": "Abstractors",
+    "asset_platform_id": "abstract",
+    "symbol": "ABSTRACTORS"
+  },
+  {
+    "id": "abstract_penguins",
+    "contract_address": "0x24434870e0643f9eaa877a83cd294715dadf2273",
+    "name": "Abstract_Penguins",
+    "asset_platform_id": "abstract",
+    "symbol": "Abstract_Penguins"
+  },
+  {
+    "id": "abstract-pepes",
+    "contract_address": "0xc97cbba151ed084ed49a0c53b93a8f2e805c5489",
+    "name": "Abstract Pepes",
+    "asset_platform_id": "abstract",
+    "symbol": "abstract_pepes"
+  },
+  {
+    "id": "abstra-universe",
+    "contract_address": "0xe501994195b9951413411395ed1921a88eff694e",
+    "name": "Abstra Universe",
+    "asset_platform_id": "abstract",
+    "symbol": "abstraunivere"
+  },
+  {
+    "id": "abstractions",
+    "contract_address": "0xc469c6dbfd7a48d0bfe1556935074fe3a4f3c96c",
+    "name": "Abstractions",
+    "asset_platform_id": "abstract",
+    "symbol": "ABSX"
+  },
+  {
+    "id": "midnight-society-founders-access-pass",
+    "contract_address": "0x89a4875c190565505b7891b700c2c6dc91816a47",
+    "name": "AccessPass",
+    "asset_platform_id": "polygon-pos",
+    "symbol": "AccessPass"
+  },
+  {
+    "id": "aligndraw",
+    "contract_address": "0x9cf0ab1cc434db83097b7e9c831a764481dec747",
+    "name": "alignDRAW",
+    "asset_platform_id": "ethereum",
+    "symbol": "aD"
+  },
+  {
+    "id": "adderrels",
+    "contract_address": "ORDINALS_UNKNOWN_CONTRACT_ADDRESS_ADDERRELS",
+    "name": "Adderrels ",
+    "asset_platform_id": "ordinals",
+    "symbol": "ADDERRELS"
+  },
+  {
+    "id": "hyperactives-hyperevm",
+    "contract_address": "0xc13058a68be48fc8946b25c0be98acb43aed50d1",
+    "name": "Hyperactives",
+    "asset_platform_id": "hyperevm",
+    "symbol": "ADHD"
+  },
+  {
+    "id": "adidas-originals-into-the-metaverse",
+    "contract_address": "0x28472a58A490c5e09A238847F66A68a47cC76f0f",
+    "name": "adidas Originals Into the Metaverse",
+    "asset_platform_id": "ethereum",
+    "symbol": "ADI"
+  },
+  {
+    "id": "admit-one",
+    "contract_address": "0xd2a077ec359d94e0a0b7e84435eacb40a67a817c",
+    "name": "Admit One",
+    "asset_platform_id": "ethereum",
+    "symbol": "ADMIT"
+  },
+  {
+    "id": "abstract-edition",
+    "contract_address": "0xc40c173a42620e98add7d8974d93d9edced27c88",
+    "name": "Abstract Edition",
+    "asset_platform_id": "abstract",
+    "symbol": "AE"
+  },
+  {
+    "id": "project-aeon",
+    "contract_address": "0xc374a204334d4edd4c6a62f0867c752d65e9579c",
+    "name": "Project AEON",
+    "asset_platform_id": "ethereum",
+    "symbol": "AEON"
+  },
+  {
+    "id": "aeons",
+    "contract_address": "54f6eda5d9d4adf71f244ca8e0c6199223b2f20f9cf02902825e66b6d92a8bc8i0",
+    "name": "Aeons",
+    "asset_platform_id": "ordinals",
+    "symbol": "AEONSBTC"
+  },
+  {
+    "id": "alter-ego-punks",
+    "contract_address": "0xc581cc4582abd5aa4ab5b6d1f27f71d13518c9dd",
+    "name": "Alter Ego Punks",
+    "asset_platform_id": "avalanche",
+    "symbol": "AEPG0"
+  },
+  {
+    "id": "alien-frens-evolution",
+    "contract_address": "0x47a00fc8590c11be4c419d9ae50dec267b6e24ee",
+    "name": "Alien Frens Evolution",
+    "asset_platform_id": "ethereum",
+    "symbol": "AFE"
+  },
+  {
+    "id": "afel",
+    "contract_address": null,
+    "name": "AFEL",
+    "asset_platform_id": "solana",
+    "symbol": "AFEL"
+  },
+  {
+    "id": "ai-fly-pepe",
+    "contract_address": "0xf239ffe9ddf8727ffa41cc96968ea8d05eca1933",
+    "name": "Ai Fly Pepe",
+    "asset_platform_id": "berachain",
+    "symbol": "AFP"
+  },
+  {
+    "id": "after-the-filter",
+    "contract_address": "stars1nf53vw5mulj9y6f66vxj2j98mkpny5nm46lkwytjk9wuj6ccsp2s34n6na",
+    "name": "After the Filter",
+    "asset_platform_id": "stargaze",
+    "symbol": "After the Filter"
+  },
+  {
+    "id": "alpha-gardeners",
+    "contract_address": null,
+    "name": "Alpha Gardeners",
+    "asset_platform_id": "solana",
+    "symbol": "AG"
+  },
+  {
+    "id": "anomaly-genesis-passport",
+    "contract_address": "0xf1d7360ff10e42aed055f1c987231185a427adcc",
+    "name": "Anomaly Genesis Passport",
+    "asset_platform_id": "ethereum",
+    "symbol": "AGP"
+  },
+  {
+    "id": "alpha-gardeners-pass",
+    "contract_address": "0x88f753c48008b938dd7f78751d3106d04ee432e3",
+    "name": "Alpha Gardeners Pass",
+    "asset_platform_id": "ethereum",
+    "symbol": "AGP"
+  },
+  {
+    "id": "ape-hater-club",
+    "contract_address": "0x9370045ce37f381500ac7d6802513bb89871e076",
+    "name": "Ape Hater Club",
+    "asset_platform_id": "ethereum",
+    "symbol": "AHC"
+  },
+  {
+    "id": "avalanche-hills-muscle-cars",
+    "contract_address": "0x66f703e48f68c03fffee0eaee7be2fe411cb3713",
+    "name": "Avalanche Hills Muscle Cars",
+    "asset_platform_id": "avalanche",
+    "symbol": "AHMC"
+  },
+  {
+    "id": "asm-aifa-all-stars",
+    "contract_address": "0x96be46c50e882dbd373081d08e0cde2b055adf6c",
+    "name": "ASM AIFA All-Stars",
+    "asset_platform_id": "ethereum",
+    "symbol": "AIFACharacter"
+  },
+  {
+    "id": "ailu",
+    "contract_address": "fb09c6a302543294188f44e4e91b0b986ad20c92b556d651d59f4f9d85bfa4dbi0",
+    "name": "AILU",
+    "asset_platform_id": "ordinals",
+    "symbol": "AILU"
+  },
+  {
+    "id": "ainn-rune-star",
+    "contract_address": "a1248094bdd721508d44a0be96bd6d81c667d8bd8e10c5117673762458a8745ai1066",
+    "name": "AINN Rune Star",
+    "asset_platform_id": "ordinals",
+    "symbol": "AINNRUNESTAR"
+  },
+  {
+    "id": "airhead",
+    "contract_address": "f1435e237e8ae4f6ca6763baec63cbd7f1d197e8a4faec08c367e0403b029313i0",
+    "name": "Airhead",
+    "asset_platform_id": "ordinals",
+    "symbol": "AIRHEAD"
+  },
+  {
+    "id": "ai-whisky",
+    "contract_address": "0xa2a8fbbacd45528ffec45ced448a9e2a9c3cfcff",
+    "name": "Ai Whisky",
+    "asset_platform_id": "avalanche",
+    "symbol": "AIWHISKY"
+  },
+  {
+    "id": "aizuki-hyperevm",
+    "contract_address": "0xd0b062654d3573d22229704f069a69302e7045b6",
+    "name": "Aizuki",
+    "asset_platform_id": "hyperevm",
+    "symbol": "AIZK"
+  },
+  {
+    "id": "ai-key",
+    "contract_address": "0x91b38dcbb99dc51125fc73f05217b23575613117",
+    "name": "AI Key",
+    "asset_platform_id": "ethereum",
+    "symbol": "AK"
+  },
+  {
+    "id": "alpha-kongs-club-akc",
+    "contract_address": "0xdbcab7a768ea9a00b2ffa5a2eb387cad609e2114",
+    "name": "Alpha Kongs Club - AKC",
+    "asset_platform_id": "ethereum",
+    "symbol": "AKC"
+  },
+  {
+    "id": "ape-kids-club-akc",
+    "contract_address": "0x9bf252f97891b907f002f2887eff9246e3054080",
+    "name": "Ape Kids Club (AKC)",
+    "asset_platform_id": "ethereum",
+    "symbol": "AKC"
+  },
+  {
+    "id": "a-kid-called-beast",
+    "contract_address": "0x77372a4cc66063575b05b44481f059be356964a4",
+    "name": "a KID called BEAST",
+    "asset_platform_id": "ethereum",
+    "symbol": "AKCB"
+  },
+  {
+    "id": "a-kid",
+    "contract_address": "0x2bea2b6bad866b5ca62117855d4b5d8a6c996db2",
+    "name": "A KID",
+    "asset_platform_id": "apechain",
+    "symbol": "AKID"
+  },
+  {
+    "id": "akita-mia",
+    "contract_address": "ORDINALS_UNKNOWN_CONTRACT_ADDRESS_AKITAMIA",
+    "name": "Akita Mia",
+    "asset_platform_id": "ordinals",
+    "symbol": "AKITAMIA"
+  },
+  {
+    "id": "akutars",
+    "contract_address": "0xaad35c2dadbe77f97301617d82e661776c891fa9",
+    "name": "Akutars",
+    "asset_platform_id": "ethereum",
+    "symbol": "AKU"
+  },
+  {
+    "id": "akumu-dragonz",
+    "contract_address": "0xc1ad47aeb274157e24a5f01b5857830aef962843",
+    "name": "Akumu Dragonz",
+    "asset_platform_id": "ethereum",
+    "symbol": "AKUMU"
+  },
+  {
+    "id": "alfadao-access-cards",
+    "contract_address": "0xd1ad8ebfb0fb6306962e48260cf1e8062eb28cfa",
+    "name": "AlfaDAO",
+    "asset_platform_id": "ethereum",
+    "symbol": "ALFA"
+  },
+  {
+    "id": "tomorrowland-a-letter-from-the-universe",
+    "contract_address": "",
+    "name": "Tomorrowland: A Letter from the Universe",
+    "asset_platform_id": "solana",
+    "symbol": "ALFTU"
+  },
+  {
+    "id": "aliens-on-abstract",
+    "contract_address": "0xba8370cb5e2231c7291715012d3b5a685d2f9594",
+    "name": "Aliens On Abstract",
+    "asset_platform_id": "abstract",
+    "symbol": "ALI"
+  },
+  {
+    "id": "alien-crows",
+    "contract_address": "0x20981e2d0b5fd1321a3f2fb8a0bf07acb7bd4284",
+    "name": "Alien Crows",
+    "asset_platform_id": "avalanche",
+    "symbol": "ALIEN"
+  },
+  {
+    "id": "alien-frens",
+    "contract_address": "0x123b30e25973fecd8354dd5f41cc45a3065ef88c",
+    "name": "alien frens",
+    "asset_platform_id": "ethereum",
+    "symbol": "ALIENFRENS"
+  },
+  {
+    "id": "alien-horror-apes-official",
+    "contract_address": "0xe33cc98d90975ad42e56251b0a1cd8bda9faf003",
+    "name": "Alien Horror Apes Official",
+    "asset_platform_id": "binance-smart-chain",
+    "symbol": "Alien Horror Apes"
+  },
+  {
+    "id": "allopass",
+    "contract_address": "0x88f1a6d167531adc34ab24c6b22a9e99bbd77e3f",
+    "name": "AlloPass",
+    "asset_platform_id": "apechain",
+    "symbol": "ALLO"
+  },
+  {
+    "id": "alpha-dogs-on-ape-1",
+    "contract_address": "0xf1e674f249e375d101e02e2f1b92d4ef57f9647c",
+    "name": "ALPHA DOGS ON APE",
+    "asset_platform_id": "apechain",
+    "symbol": "ALPHA"
+  },
+  {
+    "id": "alpha-gate-space-nation",
+    "contract_address": "0xff2b4721f997c242ff406a626f17df083bd2c568",
+    "name": "Alpha Gate",
+    "asset_platform_id": "ethereum",
+    "symbol": "alphagate"
+  },
+  {
+    "id": "alphasharks-nft",
+    "contract_address": "0x78a5e2b8c280fa5580fbe1e1ed546183f959d305",
+    "name": "AlphaSharks NFT",
+    "asset_platform_id": "ethereum",
+    "symbol": "ALPHASHARKS"
+  },
+  {
+    "id": "alts-by-adidas",
+    "contract_address": "0x749f5ddf5ab4c1f26f74560a78300563c34b417d",
+    "name": "ALTS by adidas",
+    "asset_platform_id": "ethereum",
+    "symbol": "ALT"
+  },
+  {
+    "id": "altlayer-og-badge-nft",
+    "contract_address": "0x1d9a1491924c1847e669dafde86341ad92a87fe2",
+    "name": "AltLayer OG Badge",
+    "asset_platform_id": "ethereum",
+    "symbol": "ALTOG"
+  },
+  {
+    "id": "anarkey-by-tradeai",
+    "contract_address": "0xa88b82af76ecf08cf652846d10857eaeeca40c97",
+    "name": "AnarKey",
+    "asset_platform_id": "ethereum",
+    "symbol": "ANARKEY"
+  },
+  {
+    "id": "the-anata-nft",
+    "contract_address": "0xf729f878f95548bc7f14b127c96089cf121505f8",
+    "name": "The Anata NFT",
+    "asset_platform_id": "ethereum",
+    "symbol": "ANATA"
+  }
+]
