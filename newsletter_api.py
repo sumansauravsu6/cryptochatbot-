@@ -9,7 +9,6 @@ import requests
 from datetime import datetime
 from dotenv import load_dotenv
 from supabase import create_client, Client
-from supabase.lib.client_options import ClientOptions
 
 # Force reload .env file
 load_dotenv(override=True)
@@ -42,17 +41,7 @@ def get_supabase_client():
             return None
         
         print(f"🔌 Connecting to Supabase...")
-        try:
-            # Try with default options first
-            supabase = create_client(supabase_url, supabase_key)
-        except TypeError as e:
-            # Fallback for older versions or proxy issues
-            print(f"   Using fallback connection method...")
-            supabase = create_client(
-                supabase_url, 
-                supabase_key,
-                options=ClientOptions(postgrest_client_timeout=10)
-            )
+        supabase = create_client(supabase_url, supabase_key)
     return supabase
 
 
