@@ -2,6 +2,8 @@
 Cron Job Script for Sending Newsletters (Completely Standalone)
 Uses direct REST API calls - NO supabase library, NO local imports
 
+VERSION: 2.0 - Standalone (2025-12-23)
+
 Usage:
   python cron_newsletter.py          # Send newsletters
   python cron_newsletter.py --test   # Test without sending
@@ -13,6 +15,10 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 load_dotenv()
+
+print("=" * 60)
+print("📌 CRON NEWSLETTER v2.0 - STANDALONE VERSION")
+print("=" * 60)
 
 
 # ==============================================
