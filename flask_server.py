@@ -511,16 +511,30 @@ def get_crypto_news():
             
             params['categories'] = currency_code
         
-        response = requests.get(base_url, params=params, timeout=10)
+        response = requests.get(base_url, params=params, timeout=15)
+        
+        # Debug: log the raw response
+        print(f"[NEWS API] Status: {response.status_code}")
+        print(f"[NEWS API] Response text (first 500 chars): {response.text[:500]}")
         
         if response.status_code == 200:
             data = response.json()
+            
+            # Debug: log what we got
+            print(f"[NEWS API] Keys in response: {data.keys()}")
+            print(f"[NEWS API] Message: {data.get('Message', 'N/A')}")
+            print(f"[NEWS API] Data type: {type(data.get('Data'))}")
+            
             news_items = []
             
             # Parse news articles from CryptoCompare
-            news_data = data.get('Data', [])
+            news_data = data.get('Data')
             if news_data is None:
+                print("[NEWS API] Data is None!")
                 news_data = []
+            
+            print(f"[NEWS API] News data length: {len(news_data) if news_data else 0}")
+            
             # Limit to first 10 items
             news_data = list(news_data)[:10]
             
