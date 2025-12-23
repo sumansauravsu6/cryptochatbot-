@@ -119,6 +119,7 @@ def get_news_for_topic(topic_id, limit=3):
 def send_newsletter_email(email, subject, html_content):
     """Send email using Brevo API"""
     api_key = os.getenv('BREVO_API_KEY')
+    sender_email = os.getenv('BREVO_SENDER_EMAIL', 'sumansauravsu9@gmail.com')
     
     headers = {
         'accept': 'application/json',
@@ -127,7 +128,7 @@ def send_newsletter_email(email, subject, html_content):
     }
     
     data = {
-        'sender': {'name': 'Crypto Chatbot', 'email': 'newsletter@cryptobot.com'},
+        'sender': {'name': 'Crypto Newsletter', 'email': sender_email},
         'to': [{'email': email}],
         'subject': subject,
         'htmlContent': html_content
