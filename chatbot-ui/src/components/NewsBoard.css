@@ -525,8 +525,7 @@
   border: 1px solid #e9ecef;
   border-radius: 12px;
   line-height: 1.8;
-  max-height: 400px;
-  overflow-y: auto;
+  max-height: none; /* No height limit - show full content */
 }
 
 .article-body p {
