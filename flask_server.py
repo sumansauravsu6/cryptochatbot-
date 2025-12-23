@@ -600,7 +600,9 @@ def get_crypto_news():
                 'id': article.get('ID', hash(url)),
                 'guid': article.get('GUID', ''),
                 'title': title,
+                'subtitle': subtitle,
                 'description': description[:500] if description else '',
+                'body': strip_html_tags(body) if body else '',  # Full article body
                 'source': source_name,
                 'source_image': source_image,
                 'url': url,
@@ -613,9 +615,22 @@ def get_crypto_news():
                 'lang': article.get('LANG', 'EN')
             })
         
-        # Get total count from API response
-        total_items = data.get('Total', len(all_news_items))
-        has_more = (offset + len(all_news_items)) < total_items
+        # Get total count from API response - CoinDesk may return it in different keys
+        # Check for various possible keys where total might be stored
+        total_items = data.get('Total', data.get('total', data.get('totalResults', 0)))
+        
+        # If no total provided, estimate based on whether we got a full page
+        if total_items == 0:
+            # If we got a full page of results, assume there are more
+            if len(all_news_items) >= per_page:
+                total_items = 10000  # Assume large number
+            else:
+                total_items = offset + len(all_news_items)
+        
+        # has_more is true if we got a full page of results (there might be more)
+        has_more = len(all_news_items) >= per_page
+        
+        print(f"News API: page={page}, per_page={per_page}, offset={offset}, returned={len(all_news_items)}, total={total_items}, has_more={has_more}")
         
         return jsonify({
             'success': True,

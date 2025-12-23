@@ -16,16 +16,19 @@ const NewsBoard = ({ onClose }) => {
   const [total, setTotal] = useState(0);
   
   const observer = useRef();
+  const PER_PAGE = 20; // Load 20 articles at a time
+  
   const lastNewsElementRef = useCallback(node => {
     if (loading || loadingMore) return;
     if (observer.current) observer.current.disconnect();
     observer.current = new IntersectionObserver(entries => {
       if (entries[0].isIntersecting && hasMore) {
+        console.log('Loading more news... Current page:', page, 'Has more:', hasMore);
         loadMoreNews();
       }
-    });
+    }, { threshold: 0.1, rootMargin: '100px' }); // Trigger earlier
     if (node) observer.current.observe(node);
-  }, [loading, loadingMore, hasMore]);
+  }, [loading, loadingMore, hasMore, page]);
 
   useEffect(() => {
     fetchNews();
@@ -41,10 +44,12 @@ const NewsBoard = ({ onClose }) => {
     setIsSearching(!!query);
     
     try {
-      const url = getNewsUrl(query, 1, 10);
+      const url = getNewsUrl(query, 1, PER_PAGE);
+      console.log('Fetching news from:', url);
       
       const response = await fetch(url);
       const data = await response.json();
+      console.log('News response:', data.success, 'Count:', data.count, 'Total:', data.total, 'Has more:', data.has_more);
       
       if (data.success) {
         setNewsData(data.news || []);
@@ -69,9 +74,11 @@ const NewsBoard = ({ onClose }) => {
     const nextPage = page + 1;
     
     try {
-      const url = getNewsUrl(isSearching ? searchQuery : '', nextPage, 10);
+      const url = getNewsUrl(isSearching ? searchQuery : '', nextPage, PER_PAGE);
+      console.log('Loading more from:', url);
       const response = await fetch(url);
       const data = await response.json();
+      console.log('More news response:', data.success, 'Count:', data.count, 'Has more:', data.has_more);
       
       if (data.success) {
         setNewsData(prev => [...prev, ...(data.news || [])]);
@@ -166,6 +173,16 @@ const NewsBoard = ({ onClose }) => {
             
             <h1 className="article-title">{selectedArticle.title}</h1>
             
+            {selectedArticle.subtitle && (
+              <h2 className="article-subtitle">{selectedArticle.subtitle}</h2>
+            )}
+            
+            {selectedArticle.author && (
+              <div className="article-author">
+                By <strong>{selectedArticle.author}</strong>
+              </div>
+            )}
+            
             {selectedArticle.categories && selectedArticle.categories.length > 0 && (
               <div className="article-currencies">
                 {selectedArticle.categories.slice(0, 5).map((category, idx) => (
@@ -174,11 +191,21 @@ const NewsBoard = ({ onClose }) => {
               </div>
             )}
             
-            {selectedArticle.description && (
-              <div className="article-description">
-                <p>{selectedArticle.description}</p>
+            {selectedArticle.sentiment && (
+              <div className={`article-sentiment sentiment-${selectedArticle.sentiment.toLowerCase()}`}>
+                Sentiment: {selectedArticle.sentiment}
               </div>
             )}
+            
+            <div className="article-body">
+              {selectedArticle.body ? (
+                <p>{selectedArticle.body}</p>
+              ) : selectedArticle.description ? (
+                <p>{selectedArticle.description}</p>
+              ) : (
+                <p className="no-content">Full article content not available. Click the link below to read on the source website.</p>
+              )}
+            </div>
             
             <div className="article-votes">
               <div className="vote-item positive">
@@ -203,7 +230,7 @@ const NewsBoard = ({ onClose }) => {
                   onClick={(e) => e.stopPropagation()}
                 >
                   <ExternalLink size={16} />
-                  Read Full Article
+                  View on {selectedArticle.source || 'Source'}
                 </a>
               </div>
             )}
