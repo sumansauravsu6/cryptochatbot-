@@ -486,19 +486,15 @@ def get_trending():
 
 @app.route('/news', methods=['GET'])
 def get_crypto_news():
-    """Get latest crypto news from CryptoPanic API v2"""
+    """Get latest crypto news from CryptoCompare API (same as newsletter)"""
     try:
         search_query = request.args.get('search', '')
         
-        # CryptoPanic API v2
-        api_key = os.getenv('CRYPTOPANIC_API_KEY')
-        base_url = "https://cryptopanic.com/api/developer/v2/posts/"
+        # CryptoCompare News API - same API used in newsletter
+        base_url = "https://min-api.cryptocompare.com/data/v2/news/"
         
         params = {
-            "auth_token": api_key,
-            "public": "true",
-            "kind": "news",
-            "filter": "rising"  # Get trending/rising news
+            "lang": "EN"
         }
         
         # If search query provided, filter for specific currency
@@ -512,7 +508,7 @@ def get_crypto_news():
                     currency_code = coin['symbol'].upper()
                     break
             
-            params['currencies'] = currency_code
+            params['categories'] = currency_code
         
         response = requests.get(base_url, params=params, timeout=10)
         
@@ -520,37 +516,30 @@ def get_crypto_news():
             data = response.json()
             news_items = []
             
-            # Parse news articles from CryptoPanic v2
-            results = data.get('results', [])
-            for item in results[:10]:
-                # Build CryptoPanic article URL from slug
-                slug = item.get('slug', '')
-                article_id = item.get('id', '')
-                article_url = f"https://cryptopanic.com/news/{article_id}/{slug}" if slug and article_id else ''
+            # Parse news articles from CryptoCompare
+            for item in data.get('Data', [])[:10]:
+                # Extract categories/currencies
+                categories = item.get('categories', '').split('|')
                 
-                # Extract currency codes from slug (they often mention coin names)
-                currency_codes = []
-                title_lower = item.get('title', '').lower()
-                for coin in COINS_LIST[:50]:  # Check top 50 coins
-                    if coin['symbol'].lower() in title_lower or coin['name'].lower() in title_lower:
-                        currency_codes.append(coin['symbol'].upper())
+                # Get source info
+                source_info = item.get('source_info', {})
+                source_name = source_info.get('name', item.get('source', 'Unknown'))
                 
                 news_items.append({
-                    'id': article_id,
+                    'id': item.get('id'),
                     'title': item.get('title', 'No title'),
-                    'description': item.get('description') or item.get('title', ''),
-                    'source': 'CryptoPanic',  # v2 API doesn't provide source
-                    'url': article_url,
-                    'imageurl': '',  # v2 API doesn't provide images
-                    'published_at': item.get('published_at', ''),
-                    'tags': '',
-                    'categories': currency_codes[:5],  # Limit to 5 currencies
+                    'description': item.get('body', ''),  # Full article body
+                    'source': source_name,
+                    'url': item.get('url', ''),  # Direct link to article
+                    'imageurl': item.get('imageurl', ''),  # Article image
+                    'published_at': item.get('published_on', ''),
+                    'tags': item.get('tags', ''),
+                    'categories': [cat.strip() for cat in categories if cat.strip()],
                     'votes': {
-                        'upvotes': 0,
-                        'downvotes': 0
+                        'upvotes': item.get('upvotes', 0),
+                        'downvotes': item.get('downvotes', 0)
                     },
-                    'domain': 'cryptopanic.com',
-                    'kind': item.get('kind', 'news')
+                    'lang': item.get('lang', 'EN')
                 })
             
             return jsonify({
@@ -560,16 +549,84 @@ def get_crypto_news():
                 'news': news_items
             })
         else:
-            return jsonify({
-                'success': False,
-                'error': f'CryptoPanic API error: {response.status_code}'
-            }), response.status_code
+            # Fallback to CryptoPanic if CryptoCompare fails
+            return get_crypto_news_fallback(search_query)
             
     except Exception as e:
+        # Try fallback on any error
+        try:
+            return get_crypto_news_fallback(request.args.get('search', ''))
+        except:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+
+def get_crypto_news_fallback(search_query=''):
+    """Fallback to CryptoPanic API v2 if CryptoCompare fails"""
+    api_key = os.getenv('CRYPTOPANIC_API_KEY')
+    base_url = "https://cryptopanic.com/api/developer/v2/posts/"
+    
+    params = {
+        "auth_token": api_key,
+        "public": "true",
+        "kind": "news",
+        "filter": "rising"
+    }
+    
+    if search_query:
+        search_query_clean = search_query.strip().lower()
+        currency_code = search_query.upper()
+        for coin in COINS_LIST:
+            if coin['id'] == search_query_clean or coin['name'].lower() == search_query_clean:
+                currency_code = coin['symbol'].upper()
+                break
+        params['currencies'] = currency_code
+    
+    response = requests.get(base_url, params=params, timeout=10)
+    
+    if response.status_code == 200:
+        data = response.json()
+        news_items = []
+        
+        for item in data.get('results', [])[:10]:
+            slug = item.get('slug', '')
+            article_id = item.get('id', '')
+            article_url = f"https://cryptopanic.com/news/{article_id}/{slug}" if slug and article_id else ''
+            
+            currency_codes = []
+            title_lower = item.get('title', '').lower()
+            for coin in COINS_LIST[:50]:
+                if coin['symbol'].lower() in title_lower or coin['name'].lower() in title_lower:
+                    currency_codes.append(coin['symbol'].upper())
+            
+            news_items.append({
+                'id': article_id,
+                'title': item.get('title', 'No title'),
+                'description': item.get('description') or item.get('title', ''),
+                'source': 'CryptoPanic',
+                'url': article_url,
+                'imageurl': '',
+                'published_at': item.get('published_at', ''),
+                'tags': '',
+                'categories': currency_codes[:5],
+                'votes': {'upvotes': 0, 'downvotes': 0},
+                'domain': 'cryptopanic.com',
+                'kind': item.get('kind', 'news')
+            })
+        
         return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+            'success': True,
+            'search_query': search_query if search_query else None,
+            'count': len(news_items),
+            'news': news_items
+        })
+    
+    return jsonify({
+        'success': False,
+        'error': f'CryptoPanic API error: {response.status_code}'
+    }), response.status_code
 
 
 # Newsletter Subscription Routes
