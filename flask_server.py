@@ -517,7 +517,13 @@ def get_crypto_news():
             news_items = []
             
             # Parse news articles from CryptoCompare
-            for item in data.get('Data', [])[:10]:
+            raw_data = data.get('Data', [])
+            if not raw_data:
+                # CryptoCompare returned empty data, use fallback
+                print(f"CryptoCompare returned empty Data, falling back to CryptoPanic")
+                return get_crypto_news_fallback(search_query)
+            
+            for item in raw_data[:10]:
                 # Extract categories/currencies
                 categories = item.get('categories', '').split('|')
                 
@@ -544,12 +550,14 @@ def get_crypto_news():
             
             return jsonify({
                 'success': True,
+                'source_api': 'CryptoCompare',
                 'search_query': search_query if search_query else None,
                 'count': len(news_items),
                 'news': news_items
             })
         else:
             # Fallback to CryptoPanic if CryptoCompare fails
+            print(f"CryptoCompare API returned status {response.status_code}, falling back")
             return get_crypto_news_fallback(search_query)
             
     except Exception as e:
@@ -618,6 +626,7 @@ def get_crypto_news_fallback(search_query=''):
         
         return jsonify({
             'success': True,
+            'source_api': 'CryptoPanic',
             'search_query': search_query if search_query else None,
             'count': len(news_items),
             'news': news_items
