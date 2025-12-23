@@ -74,47 +74,55 @@ def get_all_active_subscribers():
 
 
 # ==============================================
-# CRYPTOPANIC NEWS API
+# CRYPTOCOMPARE NEWS API (Same as working news dashboard)
 # ==============================================
 
 def get_news_for_topic(topic_id, limit=3):
-    """Fetch news from CryptoPanic API"""
-    api_key = os.getenv('CRYPTOPANIC_API_KEY')
+    """Fetch news from CryptoCompare API (same API as news dashboard)"""
     
-    # Map topics to CryptoPanic currencies/filters
-    currency_map = {
+    # Map topics to CryptoCompare categories
+    category_map = {
         'bitcoin': 'BTC',
         'ethereum': 'ETH',
-        'altcoins': 'SOL,ADA,XRP,DOT',
-        'defi': 'UNI,AAVE,LINK',
-        'nft-cryptopunks': 'ETH',
-        'nft-bored-ape': 'ETH',
-        'nft-art': 'ETH',
-        'nft-gaming': 'ETH',
-        'nft-marketplace': 'ETH',
-        'nft-metaverse': 'ETH',
-        'trading': 'BTC,ETH',
-        'mining': 'BTC',
-        'regulation': 'BTC',
-        'market-analysis': 'BTC,ETH'
+        'altcoins': 'Altcoin',
+        'defi': 'DeFi',
+        'nft-cryptopunks': 'NFT',
+        'nft-bored-ape': 'NFT',
+        'nft-art': 'NFT',
+        'nft-gaming': 'NFT',
+        'nft-marketplace': 'NFT',
+        'nft-metaverse': 'NFT',
+        'trading': 'Trading',
+        'mining': 'Mining',
+        'regulation': 'Regulation',
+        'market-analysis': 'Analysis'
     }
     
-    currencies = currency_map.get(topic_id, 'BTC')
+    category = category_map.get(topic_id, 'BTC')
     
-    # Use params like the working cryptopanic_api.py - filter is REQUIRED
-    url = f"https://cryptopanic.com/api/v1/posts/"
+    # CryptoCompare News API - same as flask_server.py /news endpoint
+    url = "https://min-api.cryptocompare.com/data/v2/news/"
     params = {
-        'auth_token': api_key,
-        'currencies': currencies,
-        'filter': 'rising',
-        'kind': 'news'
+        'lang': 'EN',
+        'categories': category
     }
     
     try:
         response = requests.get(url, params=params, timeout=10)
         response.raise_for_status()
         data = response.json()
-        return data.get('results', [])[:limit]
+        
+        # Parse articles like flask_server.py does
+        articles = []
+        for item in data.get('Data', [])[:limit]:
+            articles.append({
+                'title': item.get('title', ''),
+                'url': item.get('url', item.get('guid', '#')),
+                'source': item.get('source_info', {}).get('name', item.get('source', 'Unknown')),
+                'published_at': item.get('published_on', '')
+            })
+        
+        return articles
     except Exception as e:
         print(f"   Error fetching news for {topic_id}: {e}")
         return []
@@ -203,7 +211,7 @@ def generate_newsletter_html(name, topics, news_by_topic):
             for article in articles:
                 title = article.get('title', 'No title')[:80]
                 url = article.get('url', '#')
-                source = article.get('source', {}).get('title', '')
+                source = article.get('source', '')  # CryptoCompare returns source as string
                 html += f'''
                 <div class="news-item">
                     <h3>{title}</h3>
