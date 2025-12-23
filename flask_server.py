@@ -484,76 +484,102 @@ def get_trending():
             'error': str(e)
         }), 500
 
+def fetch_cryptopanic_news(search_query=''):
+    """Fetch news from CryptoPanic as fallback"""
+    api_key = os.getenv('CRYPTOPANIC_API_KEY', '')
+    if not api_key:
+        return None
+    
+    url = "https://cryptopanic.com/api/v1/posts/"
+    params = {
+        'auth_token': api_key,
+        'filter': 'hot',
+        'public': 'true'
+    }
+    
+    if search_query:
+        params['currencies'] = search_query.upper()
+    
+    try:
+        response = requests.get(url, params=params, timeout=10)
+        print(f"[CRYPTOPANIC] Status: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            results = data.get('results', [])[:10]
+            
+            news_items = []
+            for item in results:
+                source = item.get('source', {})
+                news_items.append({
+                    'id': item.get('id'),
+                    'title': item.get('title', 'No title'),
+                    'description': '',
+                    'source': source.get('title', 'Unknown') if isinstance(source, dict) else str(source),
+                    'url': item.get('url', ''),
+                    'imageurl': '',
+                    'published_at': item.get('published_at', ''),
+                    'tags': '',
+                    'categories': [c.get('code', '') for c in item.get('currencies', [])],
+                    'votes': {
+                        'upvotes': item.get('votes', {}).get('positive', 0),
+                        'downvotes': item.get('votes', {}).get('negative', 0)
+                    },
+                    'lang': 'EN'
+                })
+            return news_items
+    except Exception as e:
+        print(f"[CRYPTOPANIC] Error: {e}")
+    
+    return None
+
 @app.route('/news', methods=['GET'])
 def get_crypto_news():
-    """Get latest crypto news from CryptoCompare API"""
+    """Get latest crypto news - tries CryptoCompare first, then CryptoPanic"""
+    search_query = request.args.get('search', '')
+    
+    # Try CryptoCompare first
     try:
-        search_query = request.args.get('search', '')
-        
-        # CryptoCompare News API v2
         base_url = "https://min-api.cryptocompare.com/data/v2/news/"
+        params = {"lang": "EN"}
         
-        params = {
-            "lang": "EN"
-        }
-        
-        # If search query provided, filter for specific currency
         if search_query:
-            # Convert coin name to symbol if needed
             search_query_clean = search_query.strip().lower()
             currency_code = search_query.upper()
-            
-            # Try to find the symbol from coins.json
             for coin in COINS_LIST:
                 if coin['id'] == search_query_clean or coin['name'].lower() == search_query_clean:
                     currency_code = coin['symbol'].upper()
                     break
-            
             params['categories'] = currency_code
         
-        response = requests.get(base_url, params=params, timeout=15)
-        
-        # Debug: log the raw response
-        print(f"[NEWS API] Status: {response.status_code}")
-        print(f"[NEWS API] Response text (first 500 chars): {response.text[:500]}")
+        response = requests.get(base_url, params=params, timeout=10)
         
         if response.status_code == 200:
             data = response.json()
             
-            # Debug: log what we got
-            print(f"[NEWS API] Keys in response: {data.keys()}")
-            print(f"[NEWS API] Message: {data.get('Message', 'N/A')}")
-            print(f"[NEWS API] Data type: {type(data.get('Data'))}")
+            # Check if rate limited
+            if data.get('Response') == 'Error' or not data.get('Data'):
+                print(f"[NEWS] CryptoCompare rate limited, trying CryptoPanic...")
+                raise Exception("Rate limited")
+            
+            news_data = data.get('Data', [])
+            if isinstance(news_data, dict):
+                news_data = list(news_data.values()) if news_data else []
             
             news_items = []
-            
-            # Parse news articles from CryptoCompare
-            news_data = data.get('Data')
-            if news_data is None:
-                print("[NEWS API] Data is None!")
-                news_data = []
-            
-            print(f"[NEWS API] News data length: {len(news_data) if news_data else 0}")
-            
-            # Limit to first 10 items
-            news_data = list(news_data)[:10]
-            
-            for item in news_data:
-                # Extract categories/currencies
+            for item in list(news_data)[:10]:
                 categories_str = item.get('categories', '') or ''
                 categories = categories_str.split('|')
-                
-                # Get source info
                 source_info = item.get('source_info') or {}
                 source_name = source_info.get('name', item.get('source', 'Unknown'))
                 
                 news_items.append({
                     'id': item.get('id'),
                     'title': item.get('title', 'No title'),
-                    'description': item.get('body', ''),  # Full article body
+                    'description': item.get('body', ''),
                     'source': source_name,
-                    'url': item.get('url', ''),  # Direct link to article
-                    'imageurl': item.get('imageurl', ''),  # Article image
+                    'url': item.get('url', ''),
+                    'imageurl': item.get('imageurl', ''),
                     'published_at': item.get('published_on', ''),
                     'tags': item.get('tags', ''),
                     'categories': [cat.strip() for cat in categories if cat.strip()],
@@ -564,24 +590,39 @@ def get_crypto_news():
                     'lang': item.get('lang', 'EN')
                 })
             
-            return jsonify({
-                'success': True,
-                'search_query': search_query if search_query else None,
-                'count': len(news_items),
-                'news': news_items
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'error': f'CryptoCompare API error: {response.status_code}'
-            }), response.status_code
-            
+            if news_items:
+                return jsonify({
+                    'success': True,
+                    'source': 'cryptocompare',
+                    'search_query': search_query if search_query else None,
+                    'count': len(news_items),
+                    'news': news_items
+                })
+            else:
+                raise Exception("No news from CryptoCompare")
+                
     except Exception as e:
-        import traceback
+        print(f"[NEWS] CryptoCompare failed: {e}")
+    
+    # Fallback to CryptoPanic
+    print("[NEWS] Trying CryptoPanic fallback...")
+    cryptopanic_news = fetch_cryptopanic_news(search_query)
+    
+    if cryptopanic_news:
         return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+            'success': True,
+            'source': 'cryptopanic',
+            'search_query': search_query if search_query else None,
+            'count': len(cryptopanic_news),
+            'news': cryptopanic_news
+        })
+    
+    # Both failed - return error
+    return jsonify({
+        'success': False,
+        'error': 'News services unavailable. CryptoCompare rate limited and CryptoPanic unavailable.',
+        'news': []
+    }), 503
 
 
 # Newsletter Subscription Routes
