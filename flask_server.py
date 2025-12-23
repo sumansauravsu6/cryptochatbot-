@@ -486,11 +486,10 @@ def get_trending():
 
 @app.route('/news', methods=['GET'])
 def get_crypto_news():
-    """Get latest crypto news from multiple RSS feeds with pagination"""
+    """Get latest crypto news from CoinDesk Data API"""
     try:
-        import xml.etree.ElementTree as ET
-        from email.utils import parsedate_to_datetime
         from html import unescape
+        from datetime import datetime
         
         def strip_html_tags(text):
             """Remove HTML tags and clean up text"""
@@ -508,117 +507,126 @@ def get_crypto_news():
         page = int(request.args.get('page', 1))
         per_page = int(request.args.get('per_page', 10))
         
-        # Multiple crypto news RSS feeds for more content
-        rss_feeds = [
-            {"url": "https://www.coindesk.com/arc/outboundfeeds/rss/", "source": "CoinDesk"},
-            {"url": "https://cointelegraph.com/rss", "source": "Cointelegraph"},
-            {"url": "https://decrypt.co/feed", "source": "Decrypt"},
-            {"url": "https://bitcoinmagazine.com/feed", "source": "Bitcoin Magazine"},
-        ]
+        # CoinDesk Data API
+        COINDESK_API_KEY = "79b813929cb47d9327859f38eb3a16895900f09c5f72f0e7d9068aa71d506749"
+        
+        # Calculate offset for pagination
+        offset = (page - 1) * per_page
+        
+        # Build API URL
+        api_url = f"https://data-api.coindesk.com/news/v1/article/list?lang=EN&limit={per_page}&offset={offset}&api_key={COINDESK_API_KEY}"
+        
+        response = requests.get(api_url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=15)
+        
+        if response.status_code != 200:
+            raise Exception(f"CoinDesk API returned status {response.status_code}")
+        
+        data = response.json()
+        articles = data.get('Data', [])
         
         all_news_items = []
         
-        # XML namespaces
-        ns = {'media': 'http://search.yahoo.com/mrss/', 'dc': 'http://purl.org/dc/elements/1.1/', 'content': 'http://purl.org/rss/1.0/modules/content/'}
+        for article in articles:
+            # Extract title and subtitle
+            title = article.get('TITLE', 'No title')
+            subtitle = article.get('SUBTITLE', '')
+            body = article.get('BODY', '')
+            
+            # Use subtitle as description, fallback to body snippet (strip HTML)
+            description = subtitle if subtitle else strip_html_tags(body)[:300]
+            
+            # Article URL and image
+            url = article.get('URL', '')
+            imageurl = article.get('IMAGE_URL', '')
+            
+            # Published timestamp (unix timestamp)
+            published_on = article.get('PUBLISHED_ON', 0)
+            
+            # Extract keywords (can be string or array)
+            keywords = article.get('KEYWORDS', '')
+            if isinstance(keywords, str) and keywords:
+                categories = [k.strip() for k in keywords.split(',') if k.strip()]
+            elif isinstance(keywords, list):
+                categories = keywords
+            else:
+                categories = []
+            
+            # Extract categories from CATEGORY_DATA array
+            category_data = article.get('CATEGORY_DATA', [])
+            if category_data:
+                for cat in category_data:
+                    cat_name = cat.get('NAME', '') or cat.get('CATEGORY', '')
+                    if cat_name and cat_name not in categories:
+                        categories.append(cat_name)
+            
+            # Get author from AUTHORS (can be string or list)
+            authors_data = article.get('AUTHORS', '')
+            if isinstance(authors_data, str) and authors_data:
+                author = authors_data
+            elif isinstance(authors_data, list) and authors_data:
+                # If list of author objects
+                if isinstance(authors_data[0], dict):
+                    author = authors_data[0].get('NAME', 'CoinDesk')
+                else:
+                    author = authors_data[0]
+            else:
+                author = 'CoinDesk'
+            
+            # Get source name from SOURCE_DATA if available
+            source_data = article.get('SOURCE_DATA', {})
+            source_name = source_data.get('NAME', 'CoinDesk') if source_data else 'CoinDesk'
+            source_image = source_data.get('IMAGE_URL', '') if source_data else ''
+            
+            # Get upvotes/downvotes
+            upvotes = article.get('UPVOTES', 0)
+            downvotes = article.get('DOWNVOTES', 0)
+            
+            # Get sentiment
+            sentiment = article.get('SENTIMENT', '')
+            
+            # Filter by search query if provided
+            if search_query:
+                title_lower = title.lower()
+                desc_lower = description.lower()
+                categories_lower = [c.lower() for c in categories] if categories else []
+                keywords_lower = keywords.lower() if isinstance(keywords, str) else ''
+                if not (search_query in title_lower or 
+                        search_query in desc_lower or
+                        search_query in keywords_lower or
+                        any(search_query in cat for cat in categories_lower)):
+                    continue
+            
+            all_news_items.append({
+                'id': article.get('ID', hash(url)),
+                'guid': article.get('GUID', ''),
+                'title': title,
+                'description': description[:500] if description else '',
+                'source': source_name,
+                'source_image': source_image,
+                'url': url,
+                'imageurl': imageurl,
+                'published_at': published_on,
+                'categories': categories[:5] if categories else [],
+                'votes': {'upvotes': upvotes, 'downvotes': downvotes},
+                'sentiment': sentiment,
+                'author': author,
+                'lang': article.get('LANG', 'EN')
+            })
         
-        for feed in rss_feeds:
-            try:
-                response = requests.get(feed['url'], headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
-                
-                if response.status_code == 200:
-                    root = ET.fromstring(response.content)
-                    items = root.findall('.//item')
-                    
-                    for item in items:
-                        title_elem = item.find('title')
-                        title = title_elem.text if title_elem is not None and title_elem.text else 'No title'
-                        
-                        link_elem = item.find('link')
-                        link = link_elem.text if link_elem is not None and link_elem.text else ''
-                        
-                        desc_elem = item.find('description')
-                        raw_description = desc_elem.text if desc_elem is not None and desc_elem.text else ''
-                        description = strip_html_tags(raw_description)
-                        
-                        pub_date_elem = item.find('pubDate')
-                        pub_date = pub_date_elem.text if pub_date_elem is not None and pub_date_elem.text else ''
-                        
-                        # Get image from media:content or media:thumbnail
-                        imageurl = ''
-                        media = item.find('media:content', ns)
-                        if media is not None:
-                            imageurl = media.get('url', '')
-                        if not imageurl:
-                            media_thumb = item.find('media:thumbnail', ns)
-                            if media_thumb is not None:
-                                imageurl = media_thumb.get('url', '')
-                        if not imageurl:
-                            # Try enclosure (common in RSS feeds)
-                            enclosure = item.find('enclosure')
-                            if enclosure is not None and 'image' in enclosure.get('type', ''):
-                                imageurl = enclosure.get('url', '')
-                        
-                        # Get categories
-                        categories = [cat.text for cat in item.findall('category') if cat.text]
-                        
-                        # Get author
-                        creator = item.find('dc:creator', ns)
-                        author = creator.text if creator is not None else feed['source']
-                        
-                        # Convert pub_date to timestamp
-                        try:
-                            dt = parsedate_to_datetime(pub_date)
-                            timestamp = int(dt.timestamp())
-                        except:
-                            timestamp = 0
-                        
-                        # Filter by search query if provided
-                        if search_query:
-                            title_lower = title.lower()
-                            categories_lower = [c.lower() for c in categories]
-                            if not (search_query in title_lower or 
-                                    any(search_query in cat for cat in categories_lower) or
-                                    search_query in description.lower()):
-                                continue
-                        
-                        all_news_items.append({
-                            'id': hash(link),
-                            'title': title,
-                            'description': description[:500] if description else '',
-                            'source': feed['source'],
-                            'url': link,
-                            'imageurl': imageurl,
-                            'published_at': timestamp,
-                            'tags': '',
-                            'categories': categories[:5],
-                            'votes': {'upvotes': 0, 'downvotes': 0},
-                            'author': author
-                        })
-            except Exception as feed_error:
-                print(f"Error fetching {feed['source']}: {feed_error}")
-                continue
-        
-        # Sort all news by timestamp (newest first)
-        all_news_items.sort(key=lambda x: x['published_at'], reverse=True)
-        
-        # Pagination
-        total_items = len(all_news_items)
-        start_idx = (page - 1) * per_page
-        end_idx = start_idx + per_page
-        paginated_items = all_news_items[start_idx:end_idx]
-        
-        has_more = end_idx < total_items
+        # Get total count from API response
+        total_items = data.get('Total', len(all_news_items))
+        has_more = (offset + len(all_news_items)) < total_items
         
         return jsonify({
             'success': True,
-            'source_api': 'Multiple RSS Feeds',
+            'source_api': 'CoinDesk Data API',
             'search_query': search_query if search_query else None,
             'page': page,
             'per_page': per_page,
             'total': total_items,
             'has_more': has_more,
-            'count': len(paginated_items),
-            'news': paginated_items
+            'count': len(all_news_items),
+            'news': all_news_items
         })
             
     except Exception as e:
