@@ -490,6 +490,19 @@ def get_crypto_news():
     try:
         import xml.etree.ElementTree as ET
         from email.utils import parsedate_to_datetime
+        from html import unescape
+        
+        def strip_html_tags(text):
+            """Remove HTML tags and clean up text"""
+            if not text:
+                return ''
+            # Remove HTML tags
+            clean = re.sub(r'<[^>]+>', '', text)
+            # Decode HTML entities
+            clean = unescape(clean)
+            # Remove extra whitespace
+            clean = re.sub(r'\s+', ' ', clean).strip()
+            return clean
         
         search_query = request.args.get('search', '').lower().strip()
         page = int(request.args.get('page', 1))
@@ -524,7 +537,8 @@ def get_crypto_news():
                         link = link_elem.text if link_elem is not None and link_elem.text else ''
                         
                         desc_elem = item.find('description')
-                        description = desc_elem.text if desc_elem is not None and desc_elem.text else ''
+                        raw_description = desc_elem.text if desc_elem is not None and desc_elem.text else ''
+                        description = strip_html_tags(raw_description)
                         
                         pub_date_elem = item.find('pubDate')
                         pub_date = pub_date_elem.text if pub_date_elem is not None and pub_date_elem.text else ''
