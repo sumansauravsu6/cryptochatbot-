@@ -242,40 +242,63 @@ const NewsBoard = ({ onClose }) => {
             <div className="news-grid">
               {newsData.map((article) => (
                 <div key={article.id} className="news-card" onClick={() => openArticle(article)}>
-                  <div className="news-card-header">
-                    <div className="news-source">
-                      <span className="source-name">{article.source}</span>
-                      <span className="news-time">
-                        <Clock size={12} />
-                        {formatDate(article.published_at)}
-                      </span>
+                  {article.imageurl && (
+                    <div className="news-card-image">
+                      <img 
+                        src={article.imageurl} 
+                        alt={article.title}
+                        onError={(e) => e.target.parentElement.style.display = 'none'}
+                      />
                     </div>
-                    {article.categories && article.categories.length > 0 && (
-                      <div className="news-currencies">
-                        {article.categories.slice(0, 3).map((category, idx) => (
-                          <span key={idx} className="currency-badge">{category}</span>
-                        ))}
-                        {article.categories.length > 3 && (
-                          <span className="currency-badge more">+{article.categories.length - 3}</span>
+                  )}
+                  <div className="news-card-content">
+                    <div className="news-card-header">
+                      <div className="news-source">
+                        <span className="source-name">{article.source}</span>
+                        <span className="news-time">
+                          <Clock size={12} />
+                          {formatDate(article.published_at)}
+                        </span>
+                      </div>
+                      {article.categories && article.categories.length > 0 && (
+                        <div className="news-currencies">
+                          {article.categories.slice(0, 3).map((category, idx) => (
+                            <span key={idx} className="currency-badge">{category}</span>
+                          ))}
+                          {article.categories.length > 3 && (
+                            <span className="currency-badge more">+{article.categories.length - 3}</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    
+                    <h3 className="news-title">{article.title}</h3>
+                    
+                    <div className="news-footer">
+                      <div className="news-votes">
+                        {article.votes && article.votes.upvotes > 0 && (
+                          <span className="vote-count positive">
+                            <ThumbsUp size={14} />
+                            {article.votes.upvotes}
+                          </span>
                         )}
                       </div>
-                    )}
-                  </div>
-                  
-                  <h3 className="news-title">{article.title}</h3>
-                  
-                  <div className="news-footer">
-                    <div className="news-votes">
-                      {article.votes.upvotes > 0 && (
-                        <span className="vote-count positive">
-                          <ThumbsUp size={14} />
-                          {article.votes.upvotes}
+                      {article.url ? (
+                        <a 
+                          href={article.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="read-more-link"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Read article <ExternalLink size={14} />
+                        </a>
+                      ) : (
+                        <span className="read-more">
+                          Read more <ExternalLink size={14} />
                         </span>
                       )}
                     </div>
-                    <span className="read-more">
-                      Read more <ExternalLink size={14} />
-                    </span>
                   </div>
                 </div>
               ))}
