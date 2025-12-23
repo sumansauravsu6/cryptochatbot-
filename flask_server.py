@@ -43,7 +43,7 @@ from newsletter_api import (
 
 app = Flask(__name__)
 
-# Configure CORS for production - allow all origins for now
+# Configure CORS for production - allow all origins for flexibility
 CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Tools dictionary for function calling
@@ -484,160 +484,99 @@ def get_trending():
             'error': str(e)
         }), 500
 
-def fetch_rss_crypto_news():
-    """Fetch news from free RSS feeds - always works, no API key needed"""
-    import xml.etree.ElementTree as ET
-    from datetime import datetime
-    
-    # Multiple RSS feeds for crypto news (all free, no rate limits)
-    rss_feeds = [
-        ('https://cointelegraph.com/rss', 'Cointelegraph'),
-        ('https://bitcoinmagazine.com/.rss/full/', 'Bitcoin Magazine'),
-        ('https://decrypt.co/feed', 'Decrypt'),
-    ]
-    
-    all_news = []
-    
-    for feed_url, source_name in rss_feeds:
-        try:
-            response = requests.get(feed_url, timeout=10, headers={
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            })
-            if response.status_code == 200:
-                root = ET.fromstring(response.content)
-                
-                # Handle both RSS and Atom feeds
-                items = root.findall('.//item') or root.findall('.//{http://www.w3.org/2005/Atom}entry')
-                
-                for item in items[:5]:  # Get 5 from each feed
-                    # RSS format
-                    title = item.findtext('title', '')
-                    link = item.findtext('link', '')
-                    description = item.findtext('description', '')[:200] if item.findtext('description') else ''
-                    pub_date = item.findtext('pubDate', '')
-                    
-                    # Atom format fallback
-                    if not title:
-                        title = item.findtext('{http://www.w3.org/2005/Atom}title', '')
-                    if not link:
-                        link_elem = item.find('{http://www.w3.org/2005/Atom}link')
-                        link = link_elem.get('href', '') if link_elem is not None else ''
-                    
-                    if title and link:
-                        all_news.append({
-                            'id': hash(link),
-                            'title': title.strip(),
-                            'description': description.strip()[:200],
-                            'source': source_name,
-                            'url': link,
-                            'imageurl': '',
-                            'published_at': pub_date,
-                            'tags': '',
-                            'categories': ['BTC', 'Crypto'],
-                            'votes': {'upvotes': 0, 'downvotes': 0},
-                            'lang': 'EN'
-                        })
-        except Exception as e:
-            print(f"[RSS] Error fetching {source_name}: {e}")
-            continue
-    
-    # Sort by title (as proxy for recency) and return top 10
-    return all_news[:10]
-
 @app.route('/news', methods=['GET'])
 def get_crypto_news():
-    """Get latest crypto news from RSS feeds (free, no rate limits)"""
-    search_query = request.args.get('search', '')
-    
-    # Try CryptoCompare first (may be rate limited)
+    """Get latest crypto news from CryptoPanic API v2"""
     try:
-        base_url = "https://min-api.cryptocompare.com/data/v2/news/"
-        params = {"lang": "EN"}
+        search_query = request.args.get('search', '')
         
+        # CryptoPanic API v2
+        api_key = os.getenv('CRYPTOPANIC_API_KEY')
+        base_url = "https://cryptopanic.com/api/developer/v2/posts/"
+        
+        params = {
+            "auth_token": api_key,
+            "public": "true",
+            "kind": "news"
+        }
+        
+        # If search query provided, filter for specific currency
         if search_query:
             search_query_clean = search_query.strip().lower()
             currency_code = search_query.upper()
+            
+            # Try to find the symbol from coins.json
             for coin in COINS_LIST:
                 if coin['id'] == search_query_clean or coin['name'].lower() == search_query_clean:
                     currency_code = coin['symbol'].upper()
                     break
-            params['categories'] = currency_code
+            
+            params['currencies'] = currency_code
         
         response = requests.get(base_url, params=params, timeout=10)
         
         if response.status_code == 200:
             data = response.json()
-            
-            # Check if rate limited
-            if data.get('Response') == 'Error' or not data.get('Data'):
-                print("[NEWS] CryptoCompare rate limited, using RSS feeds...")
-                raise Exception("Rate limited")
-            
-            news_data = data.get('Data', [])
-            if isinstance(news_data, dict):
-                news_data = list(news_data.values()) if news_data else []
-            
             news_items = []
-            for item in list(news_data)[:10]:
-                categories_str = item.get('categories', '') or ''
-                categories = categories_str.split('|')
-                source_info = item.get('source_info') or {}
-                source_name = source_info.get('name', item.get('source', 'Unknown'))
+            
+            # Parse news articles from CryptoPanic
+            results = data.get('results', [])
+            for item in results[:10]:
+                # Extract currencies mentioned
+                currencies = item.get('currencies', [])
+                currency_codes = [c.get('code', '') for c in currencies] if currencies else []
+                
+                # Get source info
+                source_info = item.get('source', {})
+                source_name = source_info.get('title', 'Unknown') if isinstance(source_info, dict) else str(source_info)
+                
+                # Get votes
+                votes = item.get('votes', {})
                 
                 news_items.append({
                     'id': item.get('id'),
                     'title': item.get('title', 'No title'),
-                    'description': item.get('body', ''),
+                    'description': item.get('title', ''),  # CryptoPanic doesn't provide full body in API
                     'source': source_name,
                     'url': item.get('url', ''),
-                    'imageurl': item.get('imageurl', ''),
-                    'published_at': item.get('published_on', ''),
-                    'tags': item.get('tags', ''),
-                    'categories': [cat.strip() for cat in categories if cat.strip()],
+                    'imageurl': '',  # CryptoPanic doesn't provide images in API
+                    'published_at': item.get('published_at', ''),
+                    'tags': '',
+                    'categories': currency_codes,
                     'votes': {
-                        'upvotes': item.get('upvotes', 0),
-                        'downvotes': item.get('downvotes', 0)
+                        'positive': votes.get('positive', 0),
+                        'negative': votes.get('negative', 0),
+                        'important': votes.get('important', 0),
+                        'liked': votes.get('liked', 0),
+                        'disliked': votes.get('disliked', 0),
+                        'lol': votes.get('lol', 0),
+                        'toxic': votes.get('toxic', 0),
+                        'saved': votes.get('saved', 0),
+                        'comments': votes.get('comments', 0)
                     },
-                    'lang': item.get('lang', 'EN')
+                    'domain': item.get('domain', ''),
+                    'kind': item.get('kind', 'news')
                 })
             
-            if news_items:
-                return jsonify({
-                    'success': True,
-                    'source': 'cryptocompare',
-                    'search_query': search_query if search_query else None,
-                    'count': len(news_items),
-                    'news': news_items
-                })
-                
+            return jsonify({
+                'success': True,
+                'search_query': search_query if search_query else None,
+                'count': len(news_items),
+                'news': news_items
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': f'CryptoPanic API error: {response.status_code}'
+            }), response.status_code
+            
     except Exception as e:
-        print(f"[NEWS] CryptoCompare failed: {e}")
-    
-    # Fallback to RSS feeds (always free, no rate limits)
-    print("[NEWS] Using RSS feeds fallback...")
-    rss_news = fetch_rss_crypto_news()
-    
-    if rss_news:
-        # Filter by search query if provided
-        if search_query:
-            search_lower = search_query.lower()
-            rss_news = [n for n in rss_news if search_lower in n['title'].lower()][:10]
-        
         return jsonify({
-            'success': True,
-            'source': 'rss_feeds',
-            'search_query': search_query if search_query else None,
-            'count': len(rss_news),
-            'news': rss_news
-        })
-    
-    return jsonify({
-        'success': False,
-        'error': 'Unable to fetch news at this time',
-        'news': []
-    }), 503
+            'success': False,
+            'error': str(e)
+        }), 500
 
-    
+
 # Newsletter Subscription Routes
 @app.route('/api/newsletter/subscribe', methods=['POST'])
 def newsletter_subscribe():
