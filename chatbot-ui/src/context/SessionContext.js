@@ -52,8 +52,17 @@ export const SessionProvider = ({ children }) => {
         console.log('✅ Loaded sessions from Supabase:', userSessions.length, 'sessions');
         setSessions(userSessions);
         
-        // Set current session to the most recent one if available
-        if (userSessions.length > 0) {
+        // Check if last session has messages
+        const lastSession = userSessions.length > 0 ? userSessions[0] : null;
+        const lastSessionHasMessages = lastSession && (lastSession.messages?.length || 0) > 0;
+        
+        if (lastSessionHasMessages) {
+          // Last session has messages - create a new empty session for new queries
+          console.log('✅ Last session has messages, creating new session for user');
+          // Don't set current session yet, let createNewSession handle it
+          setCurrentSessionId(null);
+        } else if (userSessions.length > 0) {
+          // Last session is empty - reuse it
           setCurrentSessionId(userSessions[0].id);
           console.log('✅ Set current session to:', userSessions[0].id);
         }
@@ -99,7 +108,7 @@ export const SessionProvider = ({ children }) => {
     }
   }, [currentSessionId, useLocalStorage]);
 
-  const createNewSession = async () => {
+  const createNewSession = async (force = false) => {
     // Prevent race conditions using ref (synchronous check)
     if (isCreatingSessionRef.current) {
       console.log('⏳ Already creating a session, skipping...');
@@ -109,7 +118,8 @@ export const SessionProvider = ({ children }) => {
     // Check the LAST (most recent) session - sessions[0] is the most recent
     const lastSession = sessions.length > 0 ? sessions[0] : null;
     
-    if (lastSession && (lastSession.messages?.length || 0) === 0) {
+    // If last session exists and has no messages, reuse it (unless forced)
+    if (!force && lastSession && (lastSession.messages?.length || 0) === 0) {
       console.log('📝 Reusing last empty session:', lastSession.id);
       setCurrentSessionId(lastSession.id);
       return lastSession.id;

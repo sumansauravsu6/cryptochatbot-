@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Loader2, LayoutDashboard, Newspaper } from 'lucide-react';
 import { useSession } from '../context/SessionContext';
-import axios from 'axios';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import Dashboard from './Dashboard';
 import NewsBoard from './NewsBoard';
 import ChartComponent from './Chart';
@@ -22,12 +23,24 @@ const ChatInterface = () => {
   useEffect(() => {
     // Only create a new session if:
     // 1. Database loading is complete (not loading from DB)
-    // 2. There are no sessions at all
-    // 3. There's no current session selected
-    if (!isLoadingFromDB && !currentSessionId && sessions.length === 0) {
-      createNewSession();
+    // 2. There's no current session selected
+    // AND one of:
+    //   a) There are no sessions at all, OR
+    //   b) The last session has messages (need new empty session for queries)
+    if (!isLoadingFromDB && !currentSessionId) {
+      const lastSession = sessions.length > 0 ? sessions[0] : null;
+      const lastSessionHasMessages = lastSession && (lastSession.messages?.length || 0) > 0;
+      
+      if (sessions.length === 0 || lastSessionHasMessages) {
+        console.log('🆕 Creating new session - no sessions or last has messages');
+        createNewSession();
+      } else if (lastSession) {
+        // Last session is empty, reuse it
+        console.log('♻️ Reusing empty last session:', lastSession.id);
+        // Note: createNewSession will also reuse empty session, but setting here is more direct
+      }
     }
-  }, [currentSessionId, createNewSession, sessions.length, isLoadingFromDB]);
+  }, [currentSessionId, createNewSession, sessions, isLoadingFromDB]);
 
   useEffect(() => {
     scrollToBottom();
@@ -56,26 +69,124 @@ const ChatInterface = () => {
         : session
     ));
     
+    const currentInput = input;
     setInput('');
     setIsLoading(true);
 
+    // Create a placeholder bot message for streaming
+    const botMessageId = (Date.now() + 1).toString();
+    const botMessage = {
+      id: botMessageId,
+      text: '',
+      sender: 'bot',
+      timestamp: new Date().toISOString(),
+      charts: null,
+      isStreaming: true
+    };
+
+    // Add bot message placeholder to UI
+    const messagesWithBot = [...messagesWithUser, botMessage];
+    setSessions(prev => prev.map(session => 
+      session.id === currentSessionId 
+        ? { ...session, messages: messagesWithBot }
+        : session
+    ));
+
     try {
-      // Call your Python backend using environment variable
-      const response = await axios.post(ENDPOINTS.chat, {
-        message: input
+      // Get last 4 messages (2 conversation pairs) for context
+      // Exclude the current user message we just added
+      const historyMessages = messages.slice(-4).filter(msg => msg.text && msg.text.trim());
+      
+      // Use EventSource for Server-Sent Events streaming
+      const streamUrl = new URL(ENDPOINTS.chatStream);
+      
+      // Fetch with streaming using fetch API
+      const response = await fetch(ENDPOINTS.chatStream, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          message: currentInput,
+          history: historyMessages
+        })
       });
 
-      const botMessage = {
-        id: (Date.now() + 1).toString(),
-        text: response.data.response || 'Sorry, I could not process your request.',
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let streamedText = '';
+      let charts = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) {
+          break;
+        }
+
+        // Decode the chunk
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.substring(6));
+              
+              if (data.type === 'token') {
+                // Append token to streamed text
+                streamedText += data.content;
+                
+                // Update the bot message in real-time
+                setSessions(prev => prev.map(session => {
+                  if (session.id === currentSessionId) {
+                    return {
+                      ...session,
+                      messages: session.messages.map(msg => 
+                        msg.id === botMessageId 
+                          ? { ...msg, text: streamedText }
+                          : msg
+                      )
+                    };
+                  }
+                  return session;
+                }));
+              } else if (data.type === 'charts') {
+                // Store charts
+                charts = data.charts;
+              } else if (data.type === 'done') {
+                // Streaming complete
+                break;
+              } else if (data.type === 'error') {
+                throw new Error(data.error);
+              }
+            } catch (parseError) {
+              console.error('Error parsing SSE data:', parseError);
+            }
+          }
+        }
+      }
+
+      // Final update with complete message and charts
+      const finalBotMessage = {
+        id: botMessageId,
+        text: streamedText || 'Sorry, I could not process your request.',
         sender: 'bot',
         timestamp: new Date().toISOString(),
-        charts: response.data.charts || null
+        charts: charts,
+        isStreaming: false
       };
 
-      // Now save both user message and bot message together
-      updateSessionMessages(currentSessionId, [...messagesWithUser, botMessage]);
+      // Save both user message and final bot message to DB
+      const finalMessages = [...messagesWithUser, finalBotMessage];
+      updateSessionMessages(currentSessionId, finalMessages);
+
     } catch (error) {
+      console.error('Streaming error:', error);
       const errorMessage = {
         id: (Date.now() + 1).toString(),
         text: 'Sorry, there was an error connecting to the chatbot. Please make sure the Python server is running.',
@@ -97,31 +208,32 @@ const ChatInterface = () => {
   };
 
   const formatMessageText = (text) => {
-    if (!text) return text;
+    if (!text) return null;
     
-    // Split by lines and format each one
-    const lines = text.split('\n').map((line, index) => {
-      const trimmedLine = line.trim();
-      
-      // Check if line starts with bullet point
-      if (trimmedLine.startsWith('•')) {
-        return (
-          <div key={index} className="bullet-point">
-            <span className="bullet">•</span>
-            <span className="bullet-text">{trimmedLine.substring(1).trim()}</span>
-          </div>
-        );
-      }
-      
-      // Regular line (headings, etc.)
-      if (trimmedLine) {
-        return <div key={index} className="text-line">{trimmedLine}</div>;
-      }
-      
-      return null;
-    }).filter(Boolean);
-    
-    return <div className="formatted-content">{lines}</div>;
+    // Use ReactMarkdown for proper formatting
+    return (
+      <ReactMarkdown 
+        remarkPlugins={[remarkGfm]}
+        components={{
+          // Customize how different markdown elements are rendered
+          p: ({node, ...props}) => <p style={{margin: '0.5em 0'}} {...props} />,
+          ul: ({node, ...props}) => <ul style={{marginLeft: '1.5em', marginTop: '0.5em'}} {...props} />,
+          ol: ({node, ...props}) => <ol style={{marginLeft: '1.5em', marginTop: '0.5em'}} {...props} />,
+          li: ({node, ...props}) => <li style={{marginBottom: '0.3em'}} {...props} />,
+          strong: ({node, ...props}) => <strong style={{fontWeight: '700'}} {...props} />,
+          em: ({node, ...props}) => <em style={{fontStyle: 'italic'}} {...props} />,
+          code: ({node, inline, ...props}) => 
+            inline 
+              ? <code style={{backgroundColor: 'rgba(0, 0, 0, 0.08)', padding: '2px 6px', borderRadius: '3px', fontSize: '0.9em'}} {...props} />
+              : <code style={{display: 'block', backgroundColor: 'rgba(0, 0, 0, 0.08)', padding: '1em', borderRadius: '6px', fontSize: '0.9em', overflowX: 'auto'}} {...props} />,
+          h1: ({node, ...props}) => <h1 style={{fontSize: '1.5em', fontWeight: '700', marginTop: '0.5em', marginBottom: '0.5em'}} {...props} />,
+          h2: ({node, ...props}) => <h2 style={{fontSize: '1.3em', fontWeight: '600', marginTop: '0.5em', marginBottom: '0.5em'}} {...props} />,
+          h3: ({node, ...props}) => <h3 style={{fontSize: '1.1em', fontWeight: '600', marginTop: '0.5em', marginBottom: '0.5em'}} {...props} />,
+        }}
+      >
+        {text}
+      </ReactMarkdown>
+    );
   };
 
   return (
@@ -192,7 +304,7 @@ const ChatInterface = () => {
                 {message.sender === 'user' ? '👤' : '🤖'}
               </div>
               <div className="message-content">
-                <div className={`message-bubble ${message.isError ? 'error' : ''}`}>
+                <div className={`message-bubble ${message.isError ? 'error' : ''} ${message.isStreaming ? 'streaming' : ''}`}>
                   {message.sender === 'bot' ? formatMessageText(message.text) : message.text}
                 </div>
                 {message.charts && message.charts.length > 0 && (

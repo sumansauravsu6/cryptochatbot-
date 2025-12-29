@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
 import sys
 import os
@@ -7,6 +7,7 @@ import requests
 from datetime import datetime, timedelta
 import json
 import re
+import time
 
 # Load environment variables
 load_dotenv()
@@ -74,6 +75,7 @@ TIMEOUT = 60
 def chat():
     data = request.json
     user_message = data.get('message', '')
+    conversation_history = data.get('history', [])  # Get conversation history
     
     if not user_message:
         return jsonify({'error': 'No message provided'}), 400
@@ -83,10 +85,19 @@ def chat():
         today = datetime.now().strftime("%Y-%m-%d")
         days_15_ago = (datetime.now() - timedelta(days=15)).strftime("%Y-%m-%d")
         
+        # Build conversation context from history
+        context_str = ""
+        if conversation_history:
+            context_str = "\n\nPrevious conversation context:\n"
+            for msg in conversation_history:
+                role = "User" if msg.get('sender') == 'user' else "Assistant"
+                context_str += f"{role}: {msg.get('text', '')}\n"
+            context_str += "\n"
+        
         # Build prompt
         prompt = f"""You are a friendly crypto buddy who helps with cryptocurrency and currency exchange info. Talk like you're chatting with a friend!
 
-IMPORTANT: Today's date is {today}.
+IMPORTANT: Today's date is {today}.{context_str}
 
 Currency Code Reference:
 - Pound, British Pound, Sterling = GBP
@@ -457,6 +468,422 @@ Be direct, clear, and natural. Vary your responses."""
             
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/chat/stream', methods=['POST'])
+def chat_stream():
+    """Streaming chat endpoint with Server-Sent Events"""
+    data = request.json
+    user_message = data.get('message', '')
+    conversation_history = data.get('history', [])  # Get conversation history
+    
+    if not user_message:
+        return jsonify({'error': 'No message provided'}), 400
+    
+    def generate():
+        try:
+            # Get today's date for context
+            today = datetime.now().strftime("%Y-%m-%d")
+            days_15_ago = (datetime.now() - timedelta(days=15)).strftime("%Y-%m-%d")
+            
+            # Build conversation context from history
+            context_str = ""
+            if conversation_history:
+                context_str = "\n\nPrevious conversation context:\n"
+                for msg in conversation_history:
+                    role = "User" if msg.get('sender') == 'user' else "Assistant"
+                    context_str += f"{role}: {msg.get('text', '')}\n"
+                context_str += "\n"
+            
+            # Build prompt (same as non-streaming version)
+            prompt = f"""You are a friendly crypto buddy who helps with cryptocurrency and currency exchange info. Talk like you're chatting with a friend!
+
+IMPORTANT: Today's date is {today}.{context_str}
+
+Currency Code Reference:
+- Pound, British Pound, Sterling = GBP
+- Euro = EUR
+- Dollar, US Dollar = USD
+- Yen, Japanese Yen = JPY
+- Rupee, Indian Rupee = INR
+- Australian Dollar = AUD
+- Canadian Dollar = CAD
+- Swiss Franc = CHF
+- Yuan, Chinese Yuan = CNY
+- Afghan Afghani = AFN
+
+Cryptocurrency Note:
+- For get_coin_price function, you can use common names (Bitcoin, XRP, Zcash, Ethereum, Cardano, Dogecoin, Litecoin, etc.)
+- The system will automatically find the correct coin ID
+- Use the name, symbol, or ticker as you know it
+
+You have access to the following functions:
+0. determine_category(name: str) - **USE THIS FIRST** to determine if a name is 'crypto', 'nft', or 'unknown'. Returns the category type.
+1. get_crypto_global_market_data() - Returns global cryptocurrency market data.
+2. get_coin_price(vs_currency: str="inr", coin_id: str = "bitcoin") - Returns the price of a specific cryptocurrency in a given currency.
+3. get_coin_info(coin_id: str = "bitcoin") - Get detailed information about a coin (description, market cap rank, categories, website, social links, etc.)
+4. get_coin_market_data(coin_id: str = "bitcoin") - Get comprehensive market data for a coin (current price, 24h/7d/30d changes, market cap, volume, ATH, ATL, etc.)
+5. search_crypto_news(query: str = "bitcoin") - Search for news and information about cryptocurrencies
+6. get_exchange_rate(from_currency: str = "USD", to_currency: str = "EUR") - Get latest exchange rate between two currencies.
+7. convert_currency(from_currency: str, to_currency: str, amount: float) - Convert an amount from one currency to another.
+8. greet(name) - Returns a greeting message for the given name.
+9. get_exchange_rate_for_time_period(from_currency: str, to_currency: str, start_date: str, end_date: str) - Get exchange rates for a date range. Dates must be in YYYY-MM-DD format.
+10. get_crypto_histrical_data(from_date: str, to_date: str, base_currency: str, target_currency: str) - Get historical market data for a cryptocurrency between two dates.
+11. get_nft_info(nft_name: str) - Get detailed information about a specific NFT collection from CoinGecko. The system will automatically resolve NFT names to IDs (e.g., "CryptoPunks", "Bored Ape", "Azuki").
+12. search_nft(query: str) - Search for NFT collections by name or keyword. Returns up to 10 matching NFT collections.
+
+User question: "{user_message}"
+
+CRITICAL - CATEGORY DETECTION FIRST:
+When user asks about price or info of something ambiguous (e.g., "Meebit", "Punk"), ALWAYS call determine_category(name) FIRST to check if it's a crypto or NFT.
+Example workflow:
+1. User asks: "what is the price of meebitstrategy"
+2. Call: determine_category("meebitstrategy") -> returns "crypto"
+3. Then call: get_coin_price("usd", "meebitstrategy")
+
+IMPORTANT FUNCTION SELECTION:
+- **ALWAYS use determine_category() first for ambiguous names**
+- If determine_category returns "crypto" -> use get_coin_price() or get_coin_info()
+- If determine_category returns "nft" -> use get_nft_info()
+- For "tell me about [coin]" or "what is [coin]" or "info about [coin]" -> use get_coin_info(coin_id)
+- For "news about [coin]" or "[coin] news" -> use search_crypto_news(query)
+- For market data, price changes, volume -> use get_coin_market_data(coin_id)
+- For finding NFTs like "search for [NFT]" or "find [NFT]" -> use search_nft(query)
+
+NFT KEYWORDS (always NFT): CryptoPunks, Bored Ape, BAYC, Azuki, Meebits (not MeebitStrategy!), Doodles, Moonbirds, CloneX, Pudgy Penguins, Mutant Ape, Art Blocks, World of Women
+
+When the user's question requires a function call, respond with ONLY the function call in this exact format:
+FUNCTION_CALL: function_name(arg1, arg2)
+
+IMPORTANT: If the user asks to compare or get multiple things, you can call multiple functions by putting each on a new line:
+FUNCTION_CALL: function1(args)
+FUNCTION_CALL: function2(args)
+
+If no function is needed, just answer the question normally.
+
+Examples:
+- "What is the current global cryptocurrency market status?" -> FUNCTION_CALL: get_crypto_global_market_data()
+- "Compare Bitcoin and Ethereum prices in USD" -> 
+FUNCTION_CALL: get_coin_price("usd", "bitcoin")
+FUNCTION_CALL: get_coin_price("usd", "ethereum")
+- "What is the price of Ethereum in USD?" -> FUNCTION_CALL: get_coin_price("usd", "ethereum")
+- "Tell me about Bitcoin" -> FUNCTION_CALL: get_coin_info("bitcoin")
+- "What is Ethereum?" -> FUNCTION_CALL: get_coin_info("ethereum")
+- "Bitcoin news" -> FUNCTION_CALL: search_crypto_news("bitcoin")
+- "News about Cardano" -> FUNCTION_CALL: search_crypto_news("cardano")
+- "Show me Bitcoin market data" -> FUNCTION_CALL: get_coin_market_data("bitcoin")
+- "What's happening with Solana?" -> FUNCTION_CALL: get_coin_market_data("solana")
+- "What is the exchange rate from USD to EUR?" -> FUNCTION_CALL: get_exchange_rate("USD", "EUR")
+- "What is the exchange rate from pound to INR?" -> FUNCTION_CALL: get_exchange_rate("GBP", "INR")
+- "What is the exchange rate from USD to INR?" -> FUNCTION_CALL: get_exchange_rate("USD", "INR")
+- "Compare USD to INR and USD to JPY" -> 
+FUNCTION_CALL: get_exchange_rate("USD", "INR")
+FUNCTION_CALL: get_exchange_rate("USD", "JPY")
+- "Compare Australian Dollar vs US Dollar and Afghan Afghani" ->
+FUNCTION_CALL: get_exchange_rate("AUD", "USD")
+FUNCTION_CALL: get_exchange_rate("AFN", "USD")
+- "Convert 100 USD to EUR" -> FUNCTION_CALL: convert_currency("USD", "EUR", 100)
+- "Bitcoin price for last 20 days" -> FUNCTION_CALL: get_crypto_histrical_data("{(datetime.now() - timedelta(days=20)).strftime('%Y-%m-%d')}", "{today}", "bitcoin", "usd")
+- "Show me ETH price from Nov 1 to Nov 30" -> FUNCTION_CALL: get_crypto_histrical_data("2025-11-01", "2025-11-30", "ethereum", "usd")
+
+When calculating dates for time period queries:
+- "last 15 days" means from {days_15_ago} to {today}
+- "last 7 days" means calculate 7 days before today
+- "last month" means calculate 30 days before today
+- "last 20 days" means calculate 20 days before today
+- Always use YYYY-MM-DD format
+- Example: "INR to USD for last 15 days" -> FUNCTION_CALL: get_exchange_rate_for_time_period("INR", "USD", "{days_15_ago}", "{today}")
+- Example: "Bitcoin price for last 20 days" -> FUNCTION_CALL: get_crypto_histrical_data("{(datetime.now() - timedelta(days=20)).strftime('%Y-%m-%d')}", "{today}", "bitcoin", "usd")
+
+NFT Query Examples:
+- "Tell me about CryptoPunks" -> FUNCTION_CALL: get_nft_info("cryptopunks")
+- "What is Bored Ape Yacht Club?" -> FUNCTION_CALL: get_nft_info("bored-ape-yacht-club")
+- "Search for NFTs related to apes" -> FUNCTION_CALL: search_nft("apes")
+- "Find Azuki NFT" -> FUNCTION_CALL: search_nft("azuki")
+- "Info about Pudgy Penguins" -> FUNCTION_CALL: get_nft_info("pudgy-penguins")
+
+IMPORTANT: 
+- Use get_exchange_rate() for CURRENT exchange rates between fiat currencies
+- Use get_exchange_rate_for_time_period() for HISTORICAL exchange rates over a date range
+- Use get_coin_price() for CURRENT cryptocurrency prices
+- Use get_crypto_histrical_data() for HISTORICAL cryptocurrency prices over a date range
+- Use get_nft_info() for detailed information about a specific NFT collection
+- Use search_nft() to find NFTs by name or keyword
+- Only use time period functions when user explicitly asks for historical data or mentions "last X days/weeks"
+"""
+            
+            # Call Groq API
+            headers = {
+                "Authorization": f"Bearer {GROQ_API_KEY}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "model": GROQ_MODEL,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.7,
+                "max_tokens": 1024
+            }
+            
+            response = requests.post(GROQ_URL, json=payload, headers=headers, timeout=TIMEOUT)
+            response.raise_for_status()
+            response_text = response.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+            
+            # Check if response contains function calls
+            if "FUNCTION_CALL:" in response_text:
+                function_calls = []
+                for line in response_text.split('\n'):
+                    if "FUNCTION_CALL:" in line:
+                        func_call = line.split("FUNCTION_CALL:")[-1].strip()
+                        if func_call:
+                            function_calls.append(func_call)
+                
+                all_results = []
+                graphs_generated = []
+                
+                for function_call in function_calls:
+                    try:
+                        result = eval(function_call, {"__builtins__": {}}, tools)
+                        
+                        # Add metadata from function call parameters
+                        import re
+                        
+                        if "get_exchange_rate_for_time_period" in function_call and isinstance(result, dict):
+                            match = re.search(r'get_exchange_rate_for_time_period\([^,]+,\s*[^,]+,\s*"([^"]+)",\s*"([^"]+)"\)', function_call)
+                            if match:
+                                result['start_date'] = match.group(1)
+                                result['end_date'] = match.group(2)
+                        
+                        elif "get_exchange_rate" in function_call and isinstance(result, dict):
+                            match = re.search(r'get_exchange_rate\("([^"]+)",\s*"([^"]+)"\)', function_call)
+                            if match:
+                                result['_from_currency'] = match.group(1)
+                                result['_to_currency'] = match.group(2)
+                        
+                        all_results.append(result)
+                    except Exception as e:
+                        all_results.append({"error": str(e)})
+                
+                # Summarize large data before sending to LLM
+                def summarize_data(data):
+                    """Summarize large datasets to avoid payload size issues"""
+                    if isinstance(data, dict):
+                        if "floor_price" in data and isinstance(data.get("floor_price"), dict):
+                            return {
+                                "type": "nft_data",
+                                "name": data.get("name", "Unknown NFT"),
+                                "description": data.get("description", "")[:200],
+                                "floor_price_usd": data["floor_price"].get("usd", 0),
+                                "floor_price_eth": data["floor_price"].get("native_currency", 0),
+                                "market_cap_usd": data.get("market_cap", {}).get("usd", 0) if isinstance(data.get("market_cap"), dict) else 0,
+                                "volume_24h_usd": data.get("volume_24h", {}).get("usd", 0) if isinstance(data.get("volume_24h"), dict) else 0,
+                                "total_supply": data.get("total_supply", 0),
+                                "floor_price_24h_change": data.get("floor_price_24h_percentage_change", {}).get("usd", 0) if isinstance(data.get("floor_price_24h_percentage_change"), dict) else 0,
+                                "website": data.get("links", {}).get("homepage", ""),
+                                "twitter": data.get("links", {}).get("twitter", ""),
+                                "native_currency": data.get("native_currency", "ETH")
+                            }
+                        elif "prices" in data and isinstance(data.get("prices"), list):
+                            prices = data["prices"]
+                            if len(prices) > 5:
+                                return {
+                                    "type": "crypto_historical_data",
+                                    "data_points": len(prices),
+                                    "first_price": prices[0][1],
+                                    "last_price": prices[-1][1],
+                                    "highest": max(p[1] for p in prices),
+                                    "lowest": min(p[1] for p in prices),
+                                    "summary": f"Historical price data with {len(prices)} data points"
+                                }
+                        elif "quotes" in data and isinstance(data.get("quotes"), dict):
+                            return {
+                                "type": "exchange_rate_time_series",
+                                "currency_pair": f"{data.get('source', 'N/A')} to {list(data['quotes'].values())[0].keys() if data['quotes'] else 'N/A'}",
+                                "data_points": len(data["quotes"])
+                            }
+                    return data
+                
+                summarized_results = [summarize_data(r) for r in all_results]
+                
+                # Check for charts
+                visualization_prompt = f"""Based on the following data, should we create a graph/visualization?
+
+Data: {json.dumps(summarized_results, indent=2) if len(summarized_results) > 1 else json.dumps(summarized_results[0], indent=2) if isinstance(summarized_results[0], dict) else str(summarized_results[0])}
+
+Respond with ONLY one of these options:
+GRAPH: YES - TIME_SERIES (if the data has multiple dates/time points)
+GRAPH: YES - MARKET_SHARE (if the data shows market dominance/percentages)
+GRAPH: YES - COMPARISON (if comparing multiple items with numbers)
+GRAPH: NO (if graph won't add value)"""
+
+                viz_payload = {
+                    "model": GROQ_MODEL,
+                    "messages": [{"role": "user", "content": visualization_prompt}],
+                    "temperature": 0.3,
+                    "max_tokens": 50
+                }
+                
+                try:
+                    viz_response = requests.post(GROQ_URL, json=viz_payload, headers=headers, timeout=TIMEOUT)
+                    viz_response.raise_for_status()
+                    viz_decision = viz_response.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+                    
+                    if "GRAPH: YES" in viz_decision or "COMPARISON" in viz_decision or "TIME_SERIES" in viz_decision or "MARKET_SHARE" in viz_decision:
+                        all_time_series = all(
+                            isinstance(r, dict) and ("prices" in r or "quotes" in r)
+                            for r in all_results
+                        )
+                        
+                        all_crypto_prices = all(
+                            isinstance(r, dict) and 
+                            not ("query" in r or "quotes" in r or "prices" in r) and
+                            len(r) == 1 and isinstance(list(r.values())[0], dict)
+                            for r in all_results
+                        )
+                        
+                        all_single_values = all(
+                            isinstance(r, dict) and ("query" in r or "result" in r) and "quotes" not in r and "prices" not in r
+                            for r in all_results
+                        )
+                        
+                        all_exchange_rates = all(
+                            isinstance(r, dict) and "query" in r and isinstance(r.get("query"), dict) and 
+                            "from" in r.get("query", {}) and "to" in r.get("query", {})
+                            for r in all_results
+                        )
+                        
+                        if all_exchange_rates and len(all_results) > 1:
+                            for i, result in enumerate(all_results):
+                                chart_result = create_chart_data(result)
+                                if chart_result:
+                                    graphs_generated.append(chart_result)
+                        elif ("COMPARISON" in viz_decision or all_crypto_prices) and len(all_results) > 1 and (all_single_values or all_crypto_prices) and not all_exchange_rates:
+                            chart_result = create_chart_data(all_results)
+                            if chart_result:
+                                graphs_generated.append(chart_result)
+                        elif all_time_series and len(all_results) > 1:
+                            for i, result in enumerate(all_results):
+                                chart_result = create_chart_data(result)
+                                if chart_result:
+                                    graphs_generated.append(chart_result)
+                        else:
+                            for result in all_results:
+                                chart_result = create_chart_data(result)
+                                if chart_result:
+                                    graphs_generated.append(chart_result)
+                except Exception as e:
+                    print(f"Visualization check failed: {e}")
+                
+                # Generate natural language response with streaming
+                if len(summarized_results) == 1:
+                    response_data_str = json.dumps(summarized_results[0], indent=2) if isinstance(summarized_results[0], dict) else str(summarized_results[0])
+                else:
+                    response_data_str = json.dumps(summarized_results, indent=2)
+                
+                prompt2 = f"""You are a helpful crypto assistant. Based on the data below, give a natural, conversational response.
+
+User asked: "{user_message}"
+
+Data:
+{response_data_str}
+
+FORMATTING GUIDELINES - IMPORTANT:
+- Use **bold** for emphasis (e.g., **Bitcoin**, **$90,052**)
+- Use *italic* for secondary info or notes
+- For SINGLE items: Give a simple, direct answer (NO bullet points)
+- For MULTIPLE items (2+): Use markdown lists with - or *
+- Use ### for section headings if needed
+- Format large numbers with commas: 8,149,502
+- Currency symbols: ₹ (INR), $ (USD), € (EUR), £ (GBP), ¥ (JPY)
+- **CRITICAL FOR NFT DATA**: When you see "floor_price_usd" field, that is the USD price. Use it directly.
+
+EXAMPLES:
+
+Single price: "**Bitcoin** is currently trading at **$90,052**"
+Single rate: "The exchange rate is **₹83.50** per dollar"
+Market data: "The total crypto market cap is **$3.17 trillion**, with Bitcoin holding **56.8%** market share"
+
+Comparison (use markdown list):
+"Here's the current pricing:
+- **Bitcoin**: $90,052
+- **Ethereum**: $3,245  
+- **Litecoin**: $81.19"
+
+Be direct, clear, and natural. Use markdown formatting to make the response visually appealing."""
+                
+                # Use streaming for the response
+                payload2 = {
+                    "model": GROQ_MODEL,
+                    "messages": [{"role": "user", "content": prompt2}],
+                    "temperature": 0.7,
+                    "max_tokens": 1024,
+                    "stream": True
+                }
+                
+                # Stream the response
+                response2 = requests.post(GROQ_URL, json=payload2, headers=headers, timeout=TIMEOUT, stream=True)
+                response2.raise_for_status()
+                
+                for line in response2.iter_lines():
+                    if line:
+                        line_text = line.decode('utf-8')
+                        if line_text.startswith('data: '):
+                            data_text = line_text[6:]
+                            if data_text.strip() == '[DONE]':
+                                break
+                            try:
+                                chunk_data = json.loads(data_text)
+                                if 'choices' in chunk_data and len(chunk_data['choices']) > 0:
+                                    delta = chunk_data['choices'][0].get('delta', {})
+                                    if 'content' in delta:
+                                        content = delta['content']
+                                        # Send token to client
+                                        yield f"data: {json.dumps({'type': 'token', 'content': content})}\n\n"
+                            except json.JSONDecodeError:
+                                continue
+                
+                # Send charts after streaming is complete
+                if graphs_generated:
+                    yield f"data: {json.dumps({'type': 'charts', 'charts': graphs_generated})}\n\n"
+                
+                # Send completion signal
+                yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            else:
+                # No function calls - stream direct response
+                payload = {
+                    "model": GROQ_MODEL,
+                    "messages": [{"role": "user", "content": f"Respond to this conversationally using markdown formatting for emphasis: {user_message}"}],
+                    "temperature": 0.7,
+                    "max_tokens": 1024,
+                    "stream": True
+                }
+                
+                response = requests.post(GROQ_URL, json=payload, headers=headers, timeout=TIMEOUT, stream=True)
+                response.raise_for_status()
+                
+                for line in response.iter_lines():
+                    if line:
+                        line_text = line.decode('utf-8')
+                        if line_text.startswith('data: '):
+                            data_text = line_text[6:]
+                            if data_text.strip() == '[DONE]':
+                                break
+                            try:
+                                chunk_data = json.loads(data_text)
+                                if 'choices' in chunk_data and len(chunk_data['choices']) > 0:
+                                    delta = chunk_data['choices'][0].get('delta', {})
+                                    if 'content' in delta:
+                                        content = delta['content']
+                                        yield f"data: {json.dumps({'type': 'token', 'content': content})}\n\n"
+                            except json.JSONDecodeError:
+                                continue
+                
+                yield f"data: {json.dumps({'type': 'done'})}\n\n"
+                
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+    
+    return Response(stream_with_context(generate()), content_type='text/event-stream')
+
 
 @app.route('/trending', methods=['GET'])
 def get_trending():

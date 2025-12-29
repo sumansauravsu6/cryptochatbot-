@@ -594,3 +594,110 @@
 [data-theme="dark"] .bullet {
   color: #8b9aff;
 }
+/* Markdown content styling */
+.message-bubble p {
+  margin: 0.5em 0;
+  line-height: 1.6;
+  color: inherit;
+}
+
+.message-bubble p:first-child {
+  margin-top: 0;
+}
+
+.message-bubble p:last-child {
+  margin-bottom: 0;
+}
+
+.message-bubble ul,
+.message-bubble ol {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+  color: inherit;
+}
+
+.message-bubble li {
+  margin-bottom: 0.3em;
+  line-height: 1.5;
+  color: inherit;
+}
+
+.message-bubble strong {
+  font-weight: 700;
+  color: inherit;
+}
+
+.message-bubble em {
+  font-style: italic;
+  color: inherit;
+}
+
+.message-bubble code {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.9em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.08);
+  color: inherit;
+}
+
+.message.user .message-bubble code {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.message-bubble pre {
+  margin: 0.5em 0;
+  padding: 1em;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 6px;
+  overflow-x: auto;
+  color: inherit;
+}
+
+.message.user .message-bubble pre {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.message-bubble h1,
+.message-bubble h2,
+.message-bubble h3 {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  font-weight: 700;
+  line-height: 1.3;
+  color: inherit;
+}
+
+.message-bubble h1 {
+  font-size: 1.5em;
+}
+
+.message-bubble h2 {
+  font-size: 1.3em;
+}
+
+.message-bubble h3 {
+  font-size: 1.1em;
+}
+
+/* Dark mode markdown support */
+[data-theme="dark"] .message.bot .message-bubble code {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .message.bot .message-bubble pre {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Streaming animation for cursor */
+.message-bubble.streaming::after {
+  content: '▊';
+  animation: blink 1s step-start infinite;
+  margin-left: 2px;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}

@@ -6,6 +6,7 @@ export const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 // API Endpoints
 export const ENDPOINTS = {
   chat: `${API_URL}/chat`,
+  chatStream: `${API_URL}/chat/stream`,
   trending: `${API_URL}/trending`,
   news: `${API_URL}/news`,
   newsletter: {
